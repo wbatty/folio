@@ -2,6 +2,11 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+// import * as pdfParse from "pdf-parse";
+// pdf-parse is CJS-only; use require to avoid ESM default-export issues
+// const SmartParser = require('pdf-parse-new/lib/SmartPDFParser');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdf = require("pdf-parse-new") as (buf: Buffer) => Promise<{ text: string }>;
 
 export async function GET() {
   const resume = await prisma.resume.findFirst({
