@@ -10,6 +10,7 @@ model Resume {
   id        String   @id @default(cuid())
   filename  String
   content   String
+  pdfData   Bytes?
   createdAt DateTime @default(now())
   jobs      Job[]
 }

@@ -13,6 +13,7 @@ interface Resume {
   filename: string;
   content: string;
   createdAt: string;
+  hasPdf: boolean;
 }
 
 interface Job {
