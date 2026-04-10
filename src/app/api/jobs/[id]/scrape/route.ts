@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
+import { chromium } from "playwright";
 import { prisma } from "@/lib/prisma";
 import { anthropic } from "@/lib/claude";
 import { JobExtractionSchema } from "@/lib/schemas";
@@ -32,11 +33,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Kick off async without blocking the response
   (async () => {
     try {
-      // 1. Fetch raw HTML
-      const res = await fetch(job.url, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; DuckReports/1.0)" },
-      });
-      const html = await res.text();
+      // 1. Fetch fully-rendered HTML via Playwright
+      const browser = await chromium.launch({ headless: true });
+      let html: string;
+      try {
+        const page = await browser.newPage();
+        await page.goto(job.url, { waitUntil: "networkidle", timeout: 30000 });
+        html = await page.content();
+      } finally {
+        await browser.close();
+      }
 
       // 2. Run through decant to get clean markdown
       let markdown = html;
