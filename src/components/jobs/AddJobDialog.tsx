@@ -61,7 +61,7 @@ export function AddJobDialog({ open, onOpenChange, onAdd }: AddJobDialogProps) {
               />
               {error && <p className="text-sm text-red-500">{error}</p>}
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               The job description will be automatically scraped and parsed. You can add questions and generate responses once research is complete.
             </p>
           </div>

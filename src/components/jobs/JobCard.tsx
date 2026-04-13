@@ -31,9 +31,10 @@ interface Job {
 interface JobCardProps {
   job: Job;
   onStatusChange: (jobId: string, status: JobStatus) => Promise<void>;
+  deleted?: boolean;
 }
 
-export function JobCard({ job, onStatusChange }: JobCardProps) {
+export function JobCard({ job, onStatusChange, deleted }: JobCardProps) {
   const [updating, setUpdating] = useState(false);
 
   async function handleStatusChange(newStatus: string) {
@@ -48,26 +49,26 @@ export function JobCard({ job, onStatusChange }: JobCardProps) {
   const isResearching = job.status === "RESEARCHING";
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow${deleted ? " opacity-50" : ""}`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <Link href={`/jobs/${job.id}`} className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               {isResearching ? (
-                <span className="flex items-center gap-1.5 text-slate-500 text-sm">
+                <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Researching...
                 </span>
               ) : (
-                <h3 className="font-semibold text-slate-900 truncate">
+                <h3 className="font-semibold text-foreground truncate">
                   {job.title ?? "Unknown Position"}
                 </h3>
               )}
             </div>
-            <p className="text-sm text-slate-600 truncate">
+            <p className="text-sm text-muted-foreground truncate">
               {job.company ?? new URL(job.url).hostname}
             </p>
-            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+            <p className="text-xs text-muted-foreground/70 mt-1 flex items-center gap-1">
               <ExternalLink className="h-3 w-3" />
               {new URL(job.url).hostname}
             </p>
@@ -76,7 +77,7 @@ export function JobCard({ job, onStatusChange }: JobCardProps) {
           <div className="flex flex-col items-end gap-2 shrink-0">
             <div onClick={(e) => e.stopPropagation()}>
               {updating ? (
-                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/70" />
               ) : (
                 <Select value={job.status} onValueChange={handleStatusChange}>
                   <SelectTrigger className="h-7 w-auto text-xs border-0 shadow-none p-0 focus:ring-0">
@@ -93,12 +94,12 @@ export function JobCard({ job, onStatusChange }: JobCardProps) {
               )}
             </div>
             {job.dateApplied && (
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-muted-foreground/70">
                 Applied {new Date(job.dateApplied).toLocaleDateString()}
               </span>
             )}
             {!job.dateApplied && (
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-muted-foreground/70">
                 Added {new Date(job.createdAt).toLocaleDateString()}
               </span>
             )}

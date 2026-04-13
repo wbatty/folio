@@ -57,18 +57,18 @@ export function NotesSection({ jobId, notes, onNoteAdded }: NotesSectionProps) {
       </div>
 
       {notes.length === 0 ? (
-        <div className="flex items-center gap-2 text-sm text-slate-400 py-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
           <StickyNote className="h-4 w-4" />
           No notes yet
         </div>
       ) : (
         <div className="space-y-3">
           {[...notes].reverse().map((note) => (
-            <div key={note.id} className="rounded-md border border-slate-100 bg-slate-50 p-3">
-              <p className="text-xs text-slate-400 mb-1">
+            <div key={note.id} className="rounded-md border border-border bg-muted p-3">
+              <p className="text-xs text-muted-foreground/70 mb-1">
                 {new Date(note.createdAt).toLocaleString()}
               </p>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap">{note.content}</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap">{note.content}</p>
             </div>
           ))}
         </div>

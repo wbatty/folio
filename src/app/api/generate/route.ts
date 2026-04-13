@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     resume.content,
     job.company,
     job.title,
-    job.description
+    job.descriptionFull
   );
 
   // Stream the response

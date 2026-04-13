@@ -142,7 +142,7 @@ export function GenerateResponseDialog({
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-base">Generate Response</DialogTitle>
-          <p className="text-sm text-slate-500 mt-1 line-clamp-2">{question}</p>
+          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{question}</p>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 min-h-0">
@@ -153,19 +153,19 @@ export function GenerateResponseDialog({
           )}
 
           {(phase === "idle") && (
-            <div className="text-center py-8 text-slate-400">
+            <div className="text-center py-8 text-muted-foreground">
               <p className="text-sm">Click "Generate" to create an AI-assisted response</p>
             </div>
           )}
 
           {isGenerating && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-slate-500">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>{phase === "refining" ? "Refining response..." : "Generating response..."}</span>
               </div>
               {streamedText && (
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                <div className="rounded-md border border-border bg-muted p-4 text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                   {streamedText}
                   <span className="animate-pulse">▊</span>
                 </div>
@@ -175,11 +175,11 @@ export function GenerateResponseDialog({
 
           {(phase === "review" || phase === "saving") && currentResponse && (
             <div className="space-y-3">
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+              <div className="rounded-md border border-border bg-muted p-4 text-sm text-foreground whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
                 {currentResponse}
               </div>
-              <div className="rounded-md border border-slate-100 bg-blue-50 p-3">
-                <Label className="text-xs text-slate-600 font-medium">Request refinement</Label>
+              <div className="rounded-md border border-border bg-blue-950/20 dark:bg-blue-950/30 p-3">
+                <Label className="text-xs text-muted-foreground font-medium">Request refinement</Label>
                 <div className="flex gap-2 mt-1.5">
                   <Input
                     placeholder="e.g. Make it more concise, focus on leadership experience..."
@@ -198,7 +198,7 @@ export function GenerateResponseDialog({
 
           {phase === "editing" && (
             <div className="space-y-2">
-              <Label className="text-xs text-slate-600">Edit response directly</Label>
+              <Label className="text-xs text-muted-foreground">Edit response directly</Label>
               <Textarea
                 value={editedText}
                 onChange={(e) => setEditedText(e.target.value)}

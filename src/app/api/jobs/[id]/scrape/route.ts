@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "child_process";
 import { chromium } from "playwright";
 import { prisma } from "@/lib/prisma";
-import { anthropic } from "@/lib/claude";
-import { JobExtractionSchema } from "@/lib/schemas";
+import { parseJob } from "@/lib/claude";
 
 async function runDecant(html: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -22,6 +21,46 @@ async function runDecant(html: string): Promise<string> {
   });
 }
 
+async function extractAndUpdate(id: string, html: string) {
+  // Clean HTML to markdown
+  let markdown = html;
+  try {
+    markdown = await runDecant(html);
+  } catch {
+    // decant not available, strip tags and fall back to plain text
+    markdown = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 20000);
+  }
+
+  await prisma.$transaction([
+    prisma.job.update({
+      where: { id },
+      data: {
+        descriptionFull: markdown,
+      },
+    }),
+    prisma.statusLog.create({
+      data: { jobId: id, status: "RESEARCHING", note: "Full description scraped" },
+    }),
+  ]);
+
+  const extracted = await parseJob(markdown.slice(0, 15000));
+
+  await prisma.$transaction([
+    prisma.job.update({
+      where: { id },
+      data: {
+        company: extracted.company,
+        title: extracted.title,
+        description: extracted.description,
+        status: "PENDING_APPLICATION",
+      },
+    }),
+    prisma.statusLog.create({
+      data: { jobId: id, status: "PENDING_APPLICATION", note: "Research complete" },
+    }),
+  ]);
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -30,71 +69,80 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
+  if(job.descriptionFull) {
+    // If we already have the full description, just re-run extraction
+    try {
+      return NextResponse.json({ message: "Extraction started with existing description" });
+    } catch (err) {
+      console.error("Extraction failed for job", id, err);
+      await prisma.$transaction([
+        prisma.job.update({ where: { id }, data: { status: "RESEARCH_ERROR" } }),
+        prisma.statusLog.create({
+          data: {
+            jobId: id,
+            status: "RESEARCH_ERROR",
+            note: err instanceof Error ? err.message : "Unknown error during extraction",
+          },
+        }),
+      ]);
+      return NextResponse.json({ error: "Extraction failed" }, { status: 500 });
+    }
+  }
+
+  // Check for manually-provided HTML in the request body
+  let manualHtml: string | null = null;
+  try {
+    const body = await req.json();
+    if (typeof body?.html === "string" && body.html.trim()) {
+      manualHtml = body.html;
+    }
+  } catch {
+    // No body / not JSON — proceed with scrape
+  }
+
+  // Reset to RESEARCHING immediately so polling picks it up
+  await prisma.$transaction([
+    prisma.job.update({ where: { id }, data: { status: "RESEARCHING" } }),
+    prisma.statusLog.create({
+      data: {
+        jobId: id,
+        status: "RESEARCHING",
+        note: manualHtml ? "Retrying with manual HTML" : "Retrying scrape",
+      },
+    }),
+  ]);
+
   // Kick off async without blocking the response
   (async () => {
     try {
-      // 1. Fetch fully-rendered HTML via Playwright
-      const browser = await chromium.launch({ headless: true });
       let html: string;
-      try {
-        const page = await browser.newPage();
-        await page.goto(job.url, { waitUntil: "networkidle", timeout: 30000 });
-        html = await page.content();
-      } finally {
-        await browser.close();
+
+      if (manualHtml) {
+        html = manualHtml;
+      } else {
+        const browser = await chromium.launch({ headless: true });
+        try {
+          const page = await browser.newPage();
+          await page.goto(job.url, { waitUntil: "networkidle", timeout: 30000 });
+          html = await page.content();
+        } finally {
+          await browser.close();
+        }
       }
 
-      // 2. Run through decant to get clean markdown
-      let markdown = html;
-      try {
-        markdown = await runDecant(html);
-      } catch {
-        // decant not available, fall back to raw HTML (Claude handles it)
-        markdown = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 20000);
-      }
-
-      // Truncate to avoid token limits
-      const truncated = markdown.slice(0, 15000);
-
-      // 3. Extract structured data with Claude
-      const extraction = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1024,
-        messages: [
-          {
-            role: "user",
-            content: `Extract the company name, job title, and a concise job description from the following content. Return ONLY valid JSON with exactly these keys: {"company": "...", "title": "...", "description": "..."}. No markdown, no explanation.\n\n${truncated}`,
-          },
-        ],
-      });
-
-      const rawText = extraction.content[0].type === "text" ? extraction.content[0].text.trim() : "{}";
-      // Strip potential markdown code fences
-      const jsonText = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-      const extracted = JobExtractionSchema.parse(JSON.parse(jsonText));
-
-      // 4. Update job record
-      await prisma.job.update({
-        where: { id },
-        data: {
-          company: extracted.company,
-          title: extracted.title,
-          description: extracted.description,
-          status: "PENDING_APPLICATION",
-        },
-      });
-
-      // 5. Log status transition
-      await prisma.statusLog.create({
-        data: {
-          jobId: id,
-          status: "PENDING_APPLICATION",
-          note: "Research complete",
-        },
-      });
+      await extractAndUpdate(id, html);
     } catch (err) {
       console.error("Scrape failed for job", id, err);
-      // Leave job in RESEARCHING so the user can retry
+      await prisma.$transaction([
+        prisma.job.update({ where: { id }, data: { status: "RESEARCH_ERROR" } }),
+        prisma.statusLog.create({
+          data: {
+            jobId: id,
+            status: "RESEARCH_ERROR",
+            note: err instanceof Error ? err.message : "Unknown error",
+          },
+        }),
+      ]);
     }
   })();
 

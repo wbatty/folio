@@ -155,14 +155,14 @@ export function ResumeSection({ resume, onUpload }: ResumeSectionProps) {
               onClick={() => fileInputRef.current?.click()}
               title="Click to replace resume"
             >
-              <p className="text-xs text-slate-500 mb-2 font-medium group-hover:text-slate-700 transition-colors">
+              <p className="text-xs text-muted-foreground mb-2 font-medium group-hover:text-foreground transition-colors">
                 {resume.filename}
-                <span className="ml-2 text-slate-300">·</span>
-                <span className="ml-2 text-slate-400">
+                <span className="ml-2 text-muted-foreground/50">·</span>
+                <span className="ml-2 text-muted-foreground/70">
                   {new Date(resume.createdAt).toLocaleDateString()}
                 </span>
               </p>
-              <div className="h-64 overflow-hidden rounded border border-slate-100 bg-slate-50 group-hover:border-slate-300 transition-colors">
+              <div className="h-64 overflow-hidden rounded border border-border bg-muted group-hover:border-ring/50 transition-colors">
                 {resume.hasPdf ? (
                   <iframe
                     src={`/api/resume/${resume.id}/pdf`}
@@ -171,10 +171,10 @@ export function ResumeSection({ resume, onUpload }: ResumeSectionProps) {
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed font-mono p-3">
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed font-mono p-3">
                     {resume.content.slice(0, 800)}
                     {resume.content.length > 800 && (
-                      <span className="text-slate-400">…</span>
+                      <span className="text-muted-foreground/50">…</span>
                     )}
                   </p>
                 )}
@@ -182,12 +182,12 @@ export function ResumeSection({ resume, onUpload }: ResumeSectionProps) {
             </div>
           ) : (
             <div
-              className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-slate-200 rounded-lg cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition-colors"
+              className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-ring/50 hover:bg-muted transition-colors"
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="h-8 w-8 text-slate-300 mb-2" />
-              <p className="text-sm text-slate-500">Upload your resume</p>
-              <p className="text-xs text-slate-400 mt-1">PDF or plain text</p>
+              <Upload className="h-8 w-8 text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">Upload your resume</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">PDF or plain text</p>
             </div>
           )}
         </CardContent>
@@ -195,19 +195,19 @@ export function ResumeSection({ resume, onUpload }: ResumeSectionProps) {
 
       <Dialog open={isEditing} onOpenChange={(open) => { if (!open) handleCancel(); }}>
         <DialogContent className="max-w-5xl h-[85vh] flex flex-col gap-0 p-0">
-          <DialogHeader className="px-6 py-4 border-b border-slate-200 shrink-0">
+          <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
             <DialogTitle className="text-base">
               Review Resume — {editingFile?.file.name}
             </DialogTitle>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Verify the extracted text below. Edit the markdown to correct any parsing errors before saving.
             </p>
           </DialogHeader>
 
-          <div className="flex flex-1 min-h-0 divide-x divide-slate-200">
+          <div className="flex flex-1 min-h-0 divide-x divide-border">
             {/* PDF preview panel */}
             <div className="w-1/2 flex flex-col min-h-0">
-              <p className="text-xs font-medium text-slate-500 px-4 py-2 border-b border-slate-100 shrink-0">
+              <p className="text-xs font-medium text-muted-foreground px-4 py-2 border-b border-border shrink-0">
                 Original PDF
               </p>
               <div className="flex-1 min-h-0">
@@ -218,7 +218,7 @@ export function ResumeSection({ resume, onUpload }: ResumeSectionProps) {
                     title="PDF preview"
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                     No PDF preview available
                   </div>
                 )}
@@ -227,11 +227,11 @@ export function ResumeSection({ resume, onUpload }: ResumeSectionProps) {
 
             {/* Markdown editor panel */}
             <div className="w-1/2 flex flex-col min-h-0">
-              <p className="text-xs font-medium text-slate-500 px-4 py-2 border-b border-slate-100 shrink-0">
+              <p className="text-xs font-medium text-muted-foreground px-4 py-2 border-b border-border shrink-0">
                 Extracted text (markdown)
               </p>
               <textarea
-                className="flex-1 min-h-0 resize-none p-4 text-xs font-mono text-slate-700 bg-white focus:outline-none"
+                className="flex-1 min-h-0 resize-none p-4 text-xs font-mono text-foreground bg-background focus:outline-none"
                 value={editedContent}
                 onChange={(e) => setEditedContent(e.target.value)}
                 spellCheck={false}
@@ -240,7 +240,7 @@ export function ResumeSection({ resume, onUpload }: ResumeSectionProps) {
             </div>
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t border-slate-200 shrink-0">
+          <DialogFooter className="px-6 py-4 border-t border-border shrink-0">
             <Button variant="ghost" onClick={handleCancel} disabled={isSaving}>
               Cancel
             </Button>

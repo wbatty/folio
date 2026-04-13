@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 // pdf-parse is CJS-only; use require to avoid ESM default-export issues
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
+const pdfParse = require("pdf-parse-new") as (buf: Buffer) => Promise<{ text: string }>;
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();

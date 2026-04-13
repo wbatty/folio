@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CreateJobSchema } from "@/lib/schemas";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const showDeleted = req.nextUrl.searchParams.get("showDeleted") === "true";
   const jobs = await prisma.job.findMany({
+    where: showDeleted ? undefined : { deletedAt: null },
     orderBy: { createdAt: "desc" },
     include: {
       statusLogs: { orderBy: { createdAt: "desc" }, take: 1 },

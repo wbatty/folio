@@ -6,13 +6,16 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/jobs/StatusBadge";
 import { StatusLog } from "@/components/job-detail/StatusLog";
 import { NotesSection } from "@/components/job-detail/NotesSection";
 import { QuestionsSection } from "@/components/job-detail/QuestionsSection";
-import { ArrowLeft, ExternalLink, Loader2, Building2, MapPin } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, Building2, MapPin, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import Markdown from 'react-markdown'
 
 const ALL_STATUSES: { value: JobStatus; label: string }[] = [
   { value: "RESEARCHING", label: "Researching" },
@@ -50,6 +53,7 @@ interface Job {
   company: string | null;
   title: string | null;
   description: string | null;
+  descriptionFull: string | null;
   status: JobStatus;
   dateApplied: string | null;
   createdAt: string;
@@ -67,6 +71,10 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [manualHtml, setManualHtml] = useState("");
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     fetch(`/api/jobs/${id}`)
@@ -89,7 +97,6 @@ export default function JobDetailPage() {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error("Failed to update status");
-      // Reload job to get new status log
       const updated = await fetch(`/api/jobs/${job.id}`).then((r) => r.json());
       setJob(updated);
     } finally {
@@ -97,19 +104,54 @@ export default function JobDetailPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!job) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete job");
+      router.push("/");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleRescrape(html?: string) {
+    if (!job) return;
+    setRetrying(true);
+    try {
+      const body = html ? JSON.stringify({ html }) : undefined;
+      await fetch(`/api/jobs/${job.id}/scrape`, {
+        method: "POST",
+        headers: body ? { "Content-Type": "application/json" } : {},
+        body,
+      });
+      // Optimistically mark as researching and reload
+      setJob((prev) => prev ? { ...prev, status: "RESEARCHING" } : prev);
+      setManualHtml("");
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!job) return null;
 
+  const isError = job.status === "RESEARCH_ERROR";
+  const lastErrorNote = isError
+    ? [...job.statusLogs].reverse().find((l) => l.status === "RESEARCH_ERROR")?.note
+    : null;
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-6 py-4">
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b border-border px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -117,11 +159,11 @@ export default function JobDetailPage() {
             </Button>
           </Link>
           <div className="flex-1 min-w-0">
-            <h1 className="font-semibold text-slate-900 truncate">
+            <h1 className="font-semibold text-foreground truncate">
               {job.title ?? "Unknown Position"}
             </h1>
             {job.company && (
-              <p className="text-sm text-slate-500 flex items-center gap-1">
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Building2 className="h-3 w-3" />
                 {job.company}
               </p>
@@ -131,11 +173,20 @@ export default function JobDetailPage() {
             href={job.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
             title="Open job posting"
           >
             <ExternalLink className="h-4 w-4" />
           </a>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={() => setShowDeleteConfirm(true)}
+            title="Delete job"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
@@ -147,20 +198,20 @@ export default function JobDetailPage() {
               <div className="flex items-center gap-3">
                 <StatusBadge status={job.status} />
                 {job.dateApplied && (
-                  <span className="text-sm text-slate-500 flex items-center gap-1">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
                     Applied {new Date(job.dateApplied).toLocaleDateString()}
                   </span>
                 )}
                 {job.resume && (
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-muted-foreground/70">
                     Resume: {job.resume.filename}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {updatingStatus && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
-                <Select value={job.status} onValueChange={handleStatusChange} disabled={updatingStatus}>
+                {updatingStatus && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                <Select value={job.status} onValueChange={handleStatusChange} disabled={updatingStatus || isError}>
                   <SelectTrigger className="w-48 h-8 text-sm">
                     <SelectValue />
                   </SelectTrigger>
@@ -175,26 +226,92 @@ export default function JobDetailPage() {
           </CardContent>
         </Card>
 
+        {/* Research Error recovery UI */}
+        {isError && (
+          <Card className="border-orange-200 dark:border-orange-900">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-orange-700 dark:text-orange-300 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Scrape failed
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {lastErrorNote && (
+                <p className="text-xs text-muted-foreground font-mono bg-muted px-3 py-2 rounded">
+                  {lastErrorNote}
+                </p>
+              )}
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRescrape()}
+                  disabled={retrying}
+                >
+                  {retrying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  Retry scrape
+                </Button>
+                <span className="text-xs text-muted-foreground">or paste the page HTML below</span>
+              </div>
+              <div className="space-y-2">
+                <Textarea
+                  placeholder="Paste raw HTML from the job posting page..."
+                  value={manualHtml}
+                  onChange={(e) => setManualHtml(e.target.value)}
+                  className="font-mono text-xs min-h-32 resize-y"
+                  disabled={retrying}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => handleRescrape(manualHtml)}
+                  disabled={retrying || !manualHtml.trim()}
+                >
+                  {retrying && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Submit HTML
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
           <div className="space-y-6">
             {/* Job Description */}
             {job.description && (
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-slate-700">Job Description</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-foreground">Job Description</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                     {job.description}
                   </p>
                 </CardContent>
               </Card>
             )}
+            {job.descriptionFull && (
+              <Collapsible>
+              <Card>
+                <CollapsibleTrigger>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-foreground">Job Description (Full)</CardTitle>
+                </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    {/* <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap"> */}
+                      <Markdown>{job.descriptionFull}</Markdown>
+                    {/* </p> */}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+              </Collapsible>
+            )}
 
             {/* Questions */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-700">
+                <CardTitle className="text-sm font-semibold text-foreground">
                   Application Questions ({job.questions.length})
                 </CardTitle>
               </CardHeader>
@@ -210,7 +327,7 @@ export default function JobDetailPage() {
             {/* Notes */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-700">Notes</CardTitle>
+                <CardTitle className="text-sm font-semibold text-foreground">Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 <NotesSection
@@ -226,7 +343,7 @@ export default function JobDetailPage() {
           <aside>
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-slate-700">Status History</CardTitle>
+                <CardTitle className="text-sm font-semibold text-foreground">Status History</CardTitle>
               </CardHeader>
               <CardContent>
                 <StatusLog logs={job.statusLogs} />
@@ -235,6 +352,26 @@ export default function JobDetailPage() {
           </aside>
         </div>
       </main>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete job?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {job.title ?? "This job"}{job.company ? ` at ${job.company}` : ""} will be removed from your list. You can still view it by enabling &quot;Show deleted&quot; on the main page.
+          </p>
+          <DialogFooter className="mt-2">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export const JobStatusEnum = z.enum([
   "RESEARCHING",
+  "RESEARCH_ERROR",
   "PENDING_APPLICATION",
   "APPLIED",
   "INTERVIEWING",

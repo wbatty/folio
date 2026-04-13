@@ -77,21 +77,21 @@ export function QuestionsSection({ jobId, questions, onQuestionsChange }: Questi
           <Card key={q.id} className="overflow-hidden">
             <CardContent className="p-0">
               <button
-                className="w-full flex items-start justify-between gap-3 p-4 text-left hover:bg-slate-50 transition-colors"
+                className="w-full flex items-start justify-between gap-3 p-4 text-left hover:bg-muted transition-colors"
                 onClick={() => setExpandedId(isExpanded ? null : q.id)}
               >
                 <div className="flex items-start gap-2 flex-1 min-w-0">
                   {q.response ? (
                     <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
                   ) : (
-                    <div className="h-4 w-4 rounded-full border-2 border-slate-200 mt-0.5 shrink-0" />
+                    <div className="h-4 w-4 rounded-full border-2 border-border mt-0.5 shrink-0" />
                   )}
-                  <span className="text-sm font-medium text-slate-800 leading-snug">{q.question}</span>
+                  <span className="text-sm font-medium text-foreground leading-snug">{q.question}</span>
                 </div>
                 {isExpanded ? (
-                  <ChevronUp className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+                  <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 ) : (
-                  <ChevronDown className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 )}
               </button>
 
@@ -101,23 +101,23 @@ export function QuestionsSection({ jobId, questions, onQuestionsChange }: Questi
 
                   {q.context && (
                     <div>
-                      <p className="text-xs font-medium text-slate-500 mb-1">Context</p>
-                      <p className="text-sm text-slate-600 bg-slate-50 rounded p-2">{q.context}</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Context</p>
+                      <p className="text-sm text-muted-foreground bg-muted rounded p-2">{q.context}</p>
                     </div>
                   )}
 
                   {q.response ? (
                     <div>
-                      <p className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
+                      <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3 text-green-500" /> Approved Response
                       </p>
-                      <p className="text-sm text-slate-700 bg-green-50 border border-green-100 rounded p-3 whitespace-pre-wrap leading-relaxed">
+                      <p className="text-sm text-foreground bg-green-950/20 border border-green-900/30 dark:bg-green-950/30 dark:border-green-900/50 rounded p-3 whitespace-pre-wrap leading-relaxed">
                         {q.response}
                       </p>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="mt-2 text-xs text-slate-500"
+                        className="mt-2 text-xs text-muted-foreground"
                         onClick={() => setGenerateFor(q)}
                       >
                         <Sparkles className="h-3 w-3" />
