@@ -14,11 +14,12 @@ export async function POST(req: NextRequest) {
   const { jobId, messages } = parsed.data;
 
   // Load job and resume
-  const { data: job } = await supabase
+  const { data: rawJob } = await supabase
     .from("jobs")
     .select("*, resume:resumes(*)")
     .eq("id", jobId)
     .single();
+  const job = rawJob as unknown as Record<string, unknown> | null;
 
   if (!job) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
@@ -45,8 +46,8 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = buildSystemPrompt(
     resume.content as string,
-    job.company,
-    job.title,
+    job.company as string,
+    job.title as string,
     job.description_full as string | null
   );
 

@@ -4,7 +4,17 @@
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
       "Bash(git -C \"C:/Users/willb/repos/duckreports\" diff --name-only HEAD)",
-      "Bash(git -C \"C:/Users/willb/repos/duckreports\" status --short)"
+      "Bash(git -C \"C:/Users/willb/repos/duckreports\" status --short)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}; [print\\(k,v\\) for k,v in sorted\\(deps.items\\(\\)\\) if any\\(x in k for x in ['shadcn','radix','tailwind','tw-animate','class-variance','clsx','lucide']\\)]\")",
+      "Bash(grep -E \"^radix-ui$\")",
+      "Bash(grep -E \"^radix-ui$|^tw-animate-css$\")",
+      "Bash(npx next:*)",
+      "Bash(kill 56935)",
+      "Read(//tmp/**)",
+      "Bash(pkill -f \"next dev\")",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s -X POST http://localhost:3000/api/jobs/import -H 'Content-Type: application/json' -d '{:*)",
+      "Bash(python3 -m json.tool)"
     ]
   }
 }

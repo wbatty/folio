@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { ResumeSection } from "@/components/resume/ResumeSection";
 import { JobCard } from "@/components/jobs/JobCard";
+import { CsvImportButton } from "@/components/jobs/CsvImportButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Briefcase, Loader2 } from "lucide-react";
@@ -43,13 +44,18 @@ export default function HomePage() {
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
+  function refreshJobs() {
     setLoadingJobs(true);
     const url = showDeleted ? "/api/jobs?showDeleted=true" : "/api/jobs";
     fetch(url)
       .then((r) => r.json())
       .then((data) => { setJobs(data); setLoadingJobs(false); })
       .catch(() => setLoadingJobs(false));
+  }
+
+  useEffect(() => {
+    refreshJobs();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleted]);
 
   // Poll researching jobs every 3s
@@ -123,6 +129,8 @@ export default function HomePage() {
             <Briefcase className="h-5 w-5 text-foreground" />
             <h1 className="text-lg font-semibold text-foreground">DuckReports</h1>
           </div>
+          <div className="flex items-center gap-2">
+          <CsvImportButton onImportComplete={refreshJobs} />
           <form onSubmit={handleAddJob} className="flex items-center gap-2">
             <div className="flex flex-col items-end">
               <Input
@@ -140,6 +148,7 @@ export default function HomePage() {
               Add Job
             </Button>
           </form>
+          </div>
         </div>
       </header>
 

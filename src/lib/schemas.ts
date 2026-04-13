@@ -54,6 +54,25 @@ export const CreateNoteSchema = z.object({
 });
 export type CreateNoteInput = z.infer<typeof CreateNoteSchema>;
 
+// ─── CSV Import ───────────────────────────────────────────────────────────────
+
+export const ImportJobRowSchema = z.object({
+  url: z.string().url(),
+  company: z.string().optional(),
+  title: z.string().optional(),
+  status: JobStatusEnum.default("APPLIED"),
+  dateApplied: z.string().optional(), // ISO date string e.g. "2026-02-02"
+  noteContent: z.string().optional(), // pre-combined contact + notes
+});
+export type ImportJobRow = z.infer<typeof ImportJobRowSchema>;
+
+export const CsvImportSchema = z.object({
+  rows: z.array(ImportJobRowSchema).min(1).max(500),
+});
+export type CsvImportInput = z.infer<typeof CsvImportSchema>;
+
+// ─── AI: Generate ─────────────────────────────────────────────────────────────
+
 export const GenerateRequestSchema = z.object({
   jobId: z.string(),
   questionId: z.string(),
