@@ -4,34 +4,59 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 
 const jobExtractionJsonSchema = z.toJSONSchema(JobExtractionSchema, { target: "draft-07" });
 
-export async function  parseJob(jobDescription: string): Promise<z.infer<typeof JobExtractionSchema>> {
+export async function parseJob(jobDescription: string): Promise<{ data: z.infer<typeof JobExtractionSchema>; sessionId: string | null }> {
   let structuredOutput: unknown;
-    for await (const message of query({
-      prompt: `Extract the company name, job title, and a concise job description from the following job posting content. Return only what is asked — do not add commentary.\n\n${jobDescription}`,
-      options: {
-        maxTurns: 3,
-        outputFormat: {
-          type: "json_schema",
-          schema: jobExtractionJsonSchema,
-        },
+  let sessionId: string | null = null;
+  for await (const message of query({
+    prompt: `Extract the company name, job title, and a concise job description from the following job posting content. Return only what is asked — do not add commentary.\n\n${jobDescription}`,
+    options: {
+      maxTurns: 3,
+      outputFormat: {
+        type: "json_schema",
+        schema: jobExtractionJsonSchema,
       },
-    })) {
-        if (message.type === "system" && message.subtype === "api_retry") {
-          throw new Error(`Agent error: ${message.error}`);
-        }
-      if (message.type === "result" && message.subtype === "success") {
-        structuredOutput = message.structured_output;
-      } else if (message.type === "result") {
-        throw new Error(`Agent extraction failed: ${message.subtype}`);
-      }
+    },
+  })) {
+    if (message.type === "system" && message.subtype === "api_retry") {
+      throw new Error(`Agent error: ${message.error}`);
     }
-  
-    if (structuredOutput === undefined) {
-      throw new Error("No structured output returned from extraction");
+    if (message.type === "result" && message.subtype === "success") {
+      structuredOutput = message.structured_output;
+      sessionId = message.session_id;
+    } else if (message.type === "result") {
+      throw new Error(`Agent extraction failed: ${message.subtype}`);
     }
-  
-    // Validate the output against our Zod schema
-    return JobExtractionSchema.parse(structuredOutput);
+  }
+
+  if (structuredOutput === undefined) {
+    throw new Error("No structured output returned from extraction");
+  }
+
+  return { data: JobExtractionSchema.parse(structuredOutput), sessionId };
+}
+
+export async function* generateWithSession(
+  sessionId: string,
+  prompt: string
+): AsyncGenerator<string> {
+  for await (const message of query({
+    prompt,
+    options: {
+      resume: sessionId,
+      maxTurns: 3,
+      permissionMode: "bypassPermissions",
+      allowDangerouslySkipPermissions: true,
+      allowedTools: [],
+    },
+  })) {
+    if (
+      message.type === "stream_event" &&
+      message.event.type === "content_block_delta" &&
+      message.event.delta.type === "text_delta"
+    ) {
+      yield message.event.delta.text;
+    }
+  }
 }
 
 

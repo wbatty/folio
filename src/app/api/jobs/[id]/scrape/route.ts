@@ -40,15 +40,16 @@ async function extractAndUpdate(id: string, html: string) {
   });
 
   // 3. Extract structured data via Claude Agent SDK
-  const extracted = await parseJob(markdown.slice(0, 15000));
+  const { data: extracted, sessionId } = await parseJob(markdown.slice(0, 15000));
 
-  // 4. Update job with structured fields and advance status
+  // 4. Update job with structured fields, session_id, and advance status
   await supabase
     .from("jobs")
     .update({
       company: extracted.company,
       title: extracted.title,
       description: extracted.description,
+      session_id: sessionId,
       status: "PENDING_APPLICATION",
     })
     .eq("id", id);
@@ -76,13 +77,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (job.description_full) {
     (async () => {
       try {
-        const extracted = await parseJob((job.description_full as string).slice(0, 15000));
+        const { data: extracted, sessionId } = await parseJob((job.description_full as string).slice(0, 15000));
         await supabase
           .from("jobs")
           .update({
             company: extracted.company,
             title: extracted.title,
             description: extracted.description,
+            session_id: sessionId,
             status: "PENDING_APPLICATION",
           })
           .eq("id", id);

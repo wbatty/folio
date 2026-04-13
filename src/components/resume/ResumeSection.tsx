@@ -194,7 +194,7 @@ export function ResumeSection({ resume, onUpload }: ResumeSectionProps) {
       </Card>
 
       <Dialog open={isEditing} onOpenChange={(open) => { if (!open) handleCancel(); }}>
-        <DialogContent className="max-w-5xl h-[85vh] flex flex-col gap-0 p-0">
+        <DialogContent className="max-w-10xl h-[85vh] flex flex-col gap-0 p-0">
           <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
             <DialogTitle className="text-base">
               Review Resume — {editingFile?.file.name}

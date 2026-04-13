@@ -16,6 +16,7 @@ function mapJob(job: Record<string, unknown>) {
     createdAt: job.created_at,
     updatedAt: job.updated_at,
     resume: job.resume,
+    sessionId: job.session_id,
     statusLogs: ((job.status_logs as unknown[]) ?? []).map((l: unknown) => {
       const log = l as Record<string, unknown>;
       return { id: log.id, status: log.status, note: log.note, createdAt: log.created_at };
@@ -35,6 +36,10 @@ function mapJob(job: Record<string, unknown>) {
       const note = n as Record<string, unknown>;
       return { id: note.id, content: note.content, createdAt: note.created_at };
     }),
+    duplicates: ((job.duplicates as unknown[]) ?? []).map((d: unknown) => {
+      const dup = d as Record<string, unknown>;
+      return {id: dup.id, company: dup.company, title: dup.title, status: dup.status};
+    })
   };
 }
 
@@ -51,6 +56,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
+  const duplicateJobs = await supabase
+    .from("jobs")
+    .select("id, company, title, status")
+    .eq("url", job.url)
+    .neq("id", id)
+    .is("deleted_at", null);
+
   // Sort sub-arrays
   const result = {
     ...job,
@@ -63,6 +75,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     notes: [...(job.notes ?? [])].sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     ),
+    duplicates: duplicateJobs.data ?? [],
   };
 
   return NextResponse.json(mapJob(result as unknown as Record<string, unknown>));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,12 @@ import { StatusBadge } from "@/components/jobs/StatusBadge";
 import { StatusLog } from "@/components/job-detail/StatusLog";
 import { NotesSection } from "@/components/job-detail/NotesSection";
 import { QuestionsSection } from "@/components/job-detail/QuestionsSection";
-import { ArrowLeft, ExternalLink, Loader2, Building2, MapPin, Trash2, AlertTriangle, RefreshCw } from "lucide-react";
+import { DuplicateJobs } from "@/components/job-detail/DuplicateJobs";
+import { ArrowLeft, ExternalLink, Loader2, Building2, MapPin, Trash2, AlertTriangle, RefreshCw, Copy } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Markdown from 'react-markdown'
+import DeleteJob from "@/components/job-detail/DeleteJob";
 
 const ALL_STATUSES: { value: JobStatus; label: string }[] = [
   { value: "RESEARCHING", label: "Researching" },
@@ -58,9 +60,11 @@ interface Job {
   dateApplied: string | null;
   createdAt: string;
   resume: { id: string; filename: string } | null;
+  sessionId: string | null;
   statusLogs: StatusLogEntry[];
   questions: Question[];
   notes: Note[];
+  duplicates?: string[]; // IDs of duplicate jobs with the same URL
 }
 
 export default function JobDetailPage() {
@@ -71,12 +75,13 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  // const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // const [deleting, setDeleting] = useState(false);
   const [manualHtml, setManualHtml] = useState("");
   const [retrying, setRetrying] = useState(false);
 
-  useEffect(() => {
+  const fetchJob = useCallback(() => {
+    setLoading(true);
     fetch(`/api/jobs/${id}`)
       .then((r) => {
         if (!r.ok) throw new Error("Not found");
@@ -86,6 +91,9 @@ export default function JobDetailPage() {
       .catch(() => router.push("/"))
       .finally(() => setLoading(false));
   }, [id, router]);
+  useEffect(() => {
+    fetchJob();
+  }, [fetchJob]);
 
   async function handleStatusChange(status: string) {
     if (!job) return;
@@ -104,17 +112,17 @@ export default function JobDetailPage() {
     }
   }
 
-  async function handleDelete() {
-    if (!job) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/jobs/${job.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete job");
-      router.push("/");
-    } finally {
-      setDeleting(false);
-    }
-  }
+  // async function handleDelete() {
+  //   if (!job) return;
+  //   setDeleting(true);
+  //   try {
+  //     const res = await fetch(`/api/jobs/${job.id}`, { method: "DELETE" });
+  //     if (!res.ok) throw new Error("Failed to delete job");
+  //     router.push("/");
+  //   } finally {
+  //     setDeleting(false);
+  //   }
+  // }
 
   async function handleRescrape(html?: string) {
     if (!job) return;
@@ -178,7 +186,8 @@ export default function JobDetailPage() {
           >
             <ExternalLink className="h-4 w-4" />
           </a>
-          <Button
+          <DeleteJob job={job} onDelete={() => router.push("/")} />
+          {/* <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-destructive"
@@ -186,11 +195,15 @@ export default function JobDetailPage() {
             title="Delete job"
           >
             <Trash2 className="h-4 w-4" />
-          </Button>
+          </Button> */}
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-6 space-y-6">
+        {/* Duplicate jobs with same URL */} 
+        {job.duplicates && job.duplicates.length > 0 && (
+            <DuplicateJobs duplicates={job.duplicates ?? []} onDelete={fetchJob} />
+      )}
         {/* Status & Meta */}
         <Card>
           <CardContent className="p-4">
@@ -207,6 +220,26 @@ export default function JobDetailPage() {
                   <span className="text-xs text-muted-foreground/70">
                     Resume: {job.resume.filename}
                   </span>
+                )}
+                {job.sessionId && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground/70">Session:</span>
+                    <code
+                      className="text-xs font-mono text-foreground/70 bg-muted px-1.5 py-0.5 rounded truncate max-w-[160px]"
+                      title={job.sessionId}
+                    >
+                      {job.sessionId}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      title={`Resume with: claude --resume ${job.sessionId}`}
+                      onClick={() => navigator.clipboard.writeText(job.sessionId!)}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -353,7 +386,7 @@ export default function JobDetailPage() {
         </div>
       </main>
 
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      {/* <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Delete job?</DialogTitle>
@@ -371,7 +404,7 @@ export default function JobDetailPage() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
     </div>
   );
 }

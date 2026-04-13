@@ -4,6 +4,8 @@ import { CreateJobSchema } from "@/lib/schemas";
 
 export async function GET(req: NextRequest) {
   const showDeleted = req.nextUrl.searchParams.get("showDeleted") === "true";
+  const showDenied = req.nextUrl.searchParams.get("showDenied") === "true";
+  const showWithdrawn = req.nextUrl.searchParams.get("showWithdrawn") === "true";
 
   let query = supabase
     .from("jobs")
@@ -12,6 +14,12 @@ export async function GET(req: NextRequest) {
 
   if (!showDeleted) {
     query = query.is("deleted_at", null);
+  }
+  if (!showDenied) {
+    query = query.neq("status", "DENIED");
+  }
+  if (!showWithdrawn) {
+    query = query.neq("status", "WITHDRAWN");
   }
 
   const { data: jobs } = await query;

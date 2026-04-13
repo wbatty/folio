@@ -83,7 +83,7 @@ export function JobCard({ job, onStatusChange, deleted }: JobCardProps) {
                   <SelectTrigger className="h-7 w-auto text-xs border-0 shadow-none p-0 focus:ring-0">
                     <StatusBadge status={job.status} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" align="end">
                     {ALL_STATUSES.map((s) => (
                       <SelectItem key={s.value} value={s.value} className="text-xs">
                         {s.label}

@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { ResumeSection } from "@/components/resume/ResumeSection";
+import { MetricsSection } from "@/components/jobs/MetricsSection";
 import { JobCard } from "@/components/jobs/JobCard";
 import { CsvImportButton } from "@/components/jobs/CsvImportButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Briefcase, Loader2 } from "lucide-react";
+import { Plus, Briefcase, Loader2, ChevronRight } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
 
 interface Resume {
@@ -25,7 +26,35 @@ interface Job {
   status: JobStatus;
   dateApplied: string | null;
   createdAt: string;
+  updatedAt: string;
   deletedAt: string | null;
+}
+
+const STATUS_PRIORITY: Record<JobStatus, number> = {
+  OFFERED: 6,
+  RESEARCH_ERROR: 5,
+  PENDING_APPLICATION: 4,
+  RESEARCHING: 3,
+  INTERVIEWING: 2,
+  APPLIED: 1,
+  DENIED: 0,
+  WITHDRAWN: 0,
+};
+
+function sortJobs(list: Job[]): Job[] {
+  return [...list].sort((a, b) => {
+    const pd = STATUS_PRIORITY[b.status] - STATUS_PRIORITY[a.status];
+    if (pd !== 0) return pd;
+    const da = a.dateApplied ?? a.createdAt;
+    const db = b.dateApplied ?? b.createdAt;
+    return new Date(db).getTime() - new Date(da).getTime();
+  });
+}
+
+const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
+
+function isArchived(job: Job): boolean {
+  return job.status === "APPLIED" && Date.now() - new Date(job.dateApplied || job.updatedAt).getTime() > TWO_WEEKS_MS;
 }
 
 export default function HomePage() {
@@ -36,6 +65,10 @@ export default function HomePage() {
   const [addingJob, setAddingJob] = useState(false);
   const [addJobError, setAddJobError] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
+  const [showDenied, setShowDenied] = useState(false);
+  const [showWithdrawn, setShowWithdrawn] = useState(false);
+  const [companySearch, setCompanySearch] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     fetch("/api/resume")
@@ -46,7 +79,11 @@ export default function HomePage() {
 
   function refreshJobs() {
     setLoadingJobs(true);
-    const url = showDeleted ? "/api/jobs?showDeleted=true" : "/api/jobs";
+    const params = new URLSearchParams();
+    if (showDeleted) params.set("showDeleted", "true");
+    if (showDenied) params.set("showDenied", "true");
+    if (showWithdrawn) params.set("showWithdrawn", "true");
+    const url = `/api/jobs${params.size ? `?${params}` : ""}`;
     fetch(url)
       .then((r) => r.json())
       .then((data) => { setJobs(data); setLoadingJobs(false); })
@@ -56,7 +93,7 @@ export default function HomePage() {
   useEffect(() => {
     refreshJobs();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showDeleted]);
+  }, [showDeleted, showDenied, showWithdrawn]);
 
   // Poll researching jobs every 3s
   useEffect(() => {
@@ -121,6 +158,14 @@ export default function HomePage() {
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status } : j)));
   }, []);
 
+  const filteredJobs = companySearch.trim()
+    ? jobs.filter((j) => j.company?.toLowerCase().includes(companySearch.toLowerCase()))
+    : jobs;
+
+  const activeJobs = sortJobs(filteredJobs.filter((j) => !isArchived(j)));
+  const archivedJobs = sortJobs(filteredJobs.filter(isArchived));
+  const visibleJobs = [...activeJobs, ...archivedJobs];
+
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b border-border px-6 py-4">
@@ -154,24 +199,42 @@ export default function HomePage() {
 
       <main className="max-w-6xl mx-auto px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
-          <aside>
+          <aside className="space-y-6">
+            <MetricsSection />
             <ResumeSection resume={resume} onUpload={setResume} />
           </aside>
 
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Applications ({jobs.length})
-              </h2>
-              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={showDeleted}
-                  onChange={(e) => setShowDeleted(e.target.checked)}
-                  className="accent-foreground"
+            <div className="flex items-center justify-between mb-4 gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide shrink-0">
+                  Applications ({visibleJobs.length})
+                </h2>
+                <Input
+                  type="text"
+                  placeholder="Filter by company…"
+                  value={companySearch}
+                  onChange={(e) => setCompanySearch(e.target.value)}
+                  className="w-40 h-7 text-sm"
                 />
-                Show deleted
-              </label>
+              </div>
+              <div className="flex items-center gap-4 shrink-0">
+                {(["denied", "withdrawn", "deleted"] as const).map((key) => {
+                  const checked = key === "denied" ? showDenied : key === "withdrawn" ? showWithdrawn : showDeleted;
+                  const setter = key === "denied" ? setShowDenied : key === "withdrawn" ? setShowWithdrawn : setShowDeleted;
+                  return (
+                    <label key={key} className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => setter(e.target.checked)}
+                        className="accent-foreground"
+                      />
+                      Show {key}
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
             {loadingJobs ? (
@@ -180,7 +243,7 @@ export default function HomePage() {
                   <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
                 ))}
               </div>
-            ) : jobs.length === 0 ? (
+            ) : visibleJobs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <Briefcase className="h-10 w-10 text-muted-foreground mb-3" />
                 <p className="text-muted-foreground font-medium">No applications yet</p>
@@ -188,7 +251,7 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {jobs.map((job) => (
+                {activeJobs.map((job) => (
                   <JobCard
                     key={job.id}
                     job={job}
@@ -196,6 +259,29 @@ export default function HomePage() {
                     deleted={!!job.deletedAt}
                   />
                 ))}
+                {archivedJobs.length > 0 && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setShowArchived((v) => !v)}
+                      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors select-none w-full py-1"
+                    >
+                      <ChevronRight className={`h-3.5 w-3.5 transition-transform ${showArchived ? "rotate-90" : ""}`} />
+                      Archived ({archivedJobs.length})
+                    </button>
+                    {showArchived && (
+                      <div className="space-y-3 mt-2">
+                        {archivedJobs.map((job) => (
+                          <JobCard
+                            key={job.id}
+                            job={job}
+                            onStatusChange={handleStatusChange}
+                            deleted={!!job.deletedAt}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </section>
