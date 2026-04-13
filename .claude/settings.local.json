@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(git -C \"C:/Users/willb/repos/duckreports\" diff --name-only HEAD)",
+      "Bash(git -C \"C:/Users/willb/repos/duckreports\" status --short)"
+    ]
+  }
+}

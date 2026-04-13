@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { anthropic, buildSystemPrompt } from "@/lib/claude";
 import { GenerateRequestSchema } from "@/lib/schemas";
 
@@ -14,29 +14,40 @@ export async function POST(req: NextRequest) {
   const { jobId, messages } = parsed.data;
 
   // Load job and resume
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: { resume: true },
-  });
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("*, resume:resumes(*)")
+    .eq("id", jobId)
+    .single();
 
   if (!job) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
   // Fall back to latest resume if job doesn't have one linked
-  const resume =
-    job.resume ??
-    (await prisma.resume.findFirst({ orderBy: { createdAt: "desc" } }));
+  let resume = job.resume as Record<string, unknown> | null;
+  if (!resume) {
+    const { data: latest } = await supabase
+      .from("resumes")
+      .select("content")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+    resume = latest;
+  }
 
   if (!resume) {
-    return NextResponse.json({ error: "No resume found. Please upload a resume first." }, { status: 400 });
+    return NextResponse.json(
+      { error: "No resume found. Please upload a resume first." },
+      { status: 400 }
+    );
   }
 
   const systemPrompt = buildSystemPrompt(
-    resume.content,
+    resume.content as string,
     job.company,
     job.title,
-    job.descriptionFull
+    job.description_full as string | null
   );
 
   // Stream the response

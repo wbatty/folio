@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { UpdateQuestionSchema } from "@/lib/schemas";
 
 export async function PATCH(
@@ -14,12 +14,26 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const question = await prisma.question.update({
-    where: { id: qid },
-    data: parsed.data,
-  });
+  const { data: question, error } = await supabase
+    .from("questions")
+    .update(parsed.data)
+    .eq("id", qid)
+    .select()
+    .single();
 
-  return NextResponse.json(question);
+  if (error || !question) {
+    return NextResponse.json({ error: error?.message ?? "Update failed" }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    id: question.id,
+    jobId: question.job_id,
+    question: question.question,
+    context: question.context,
+    response: question.response,
+    createdAt: question.created_at,
+    updatedAt: question.updated_at,
+  });
 }
 
 export async function DELETE(
@@ -27,6 +41,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; qid: string }> }
 ) {
   const { qid } = await params;
-  await prisma.question.delete({ where: { id: qid } });
+  await supabase.from("questions").delete().eq("id", qid);
   return NextResponse.json({ success: true });
 }

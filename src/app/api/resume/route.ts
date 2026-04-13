@@ -1,18 +1,15 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-// import * as pdfParse from "pdf-parse";
-// pdf-parse is CJS-only; use require to avoid ESM default-export issues
-// const SmartParser = require('pdf-parse-new/lib/SmartPDFParser');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdf = require("pdf-parse-new") as (buf: Buffer) => Promise<{ text: string }>;
+import { supabase } from "@/lib/supabase";
 
 export async function GET() {
-  const resume = await prisma.resume.findFirst({
-    orderBy: { createdAt: "desc" },
-    select: { id: true, filename: true, content: true, createdAt: true, pdfData: true },
-  });
+  const { data: resume } = await supabase
+    .from("resumes")
+    .select("id, filename, content, created_at, pdf_path")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
 
   if (!resume) return NextResponse.json(null);
 
@@ -20,8 +17,8 @@ export async function GET() {
     id: resume.id,
     filename: resume.filename,
     content: resume.content,
-    createdAt: resume.createdAt,
-    hasPdf: resume.pdfData !== null,
+    createdAt: resume.created_at,
+    hasPdf: resume.pdf_path !== null,
   });
 }
 
@@ -42,21 +39,43 @@ export async function POST(req: NextRequest) {
 
   const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
 
-  const resume = await prisma.resume.create({
-    data: {
-      filename: file.name,
-      content,
-      pdfData: isPdf ? buffer : null,
-    },
-  });
+  let pdfPath: string | null = null;
+
+  if (isPdf) {
+    const storagePath = `resume-${Date.now()}.pdf`;
+    const { error: uploadError } = await supabase.storage
+      .from("resumes")
+      .upload(storagePath, buffer, { contentType: "application/pdf" });
+
+    if (uploadError) {
+      return NextResponse.json(
+        { error: `PDF upload failed: ${uploadError.message}` },
+        { status: 500 }
+      );
+    }
+    pdfPath = storagePath;
+  }
+
+  const { data: resume, error } = await supabase
+    .from("resumes")
+    .insert({ filename: file.name, content, pdf_path: pdfPath })
+    .select()
+    .single();
+
+  if (error || !resume) {
+    return NextResponse.json(
+      { error: error?.message ?? "Insert failed" },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json(
     {
       id: resume.id,
       filename: resume.filename,
       content: resume.content,
-      createdAt: resume.createdAt,
-      hasPdf: resume.pdfData !== null,
+      createdAt: resume.created_at,
+      hasPdf: resume.pdf_path !== null,
     },
     { status: 201 }
   );

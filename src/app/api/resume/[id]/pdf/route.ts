@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
 export async function GET(
   _req: NextRequest,
@@ -9,16 +9,27 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const resume = await prisma.resume.findUnique({
-    where: { id },
-    select: { pdfData: true },
-  });
+  const { data: resume } = await supabase
+    .from("resumes")
+    .select("pdf_path")
+    .eq("id", id)
+    .single();
 
-  if (!resume?.pdfData) {
+  if (!resume?.pdf_path) {
     return NextResponse.json({ error: "PDF not found" }, { status: 404 });
   }
 
-  return new NextResponse(resume.pdfData, {
+  const { data: blob, error } = await supabase.storage
+    .from("resumes")
+    .download(resume.pdf_path);
+
+  if (error || !blob) {
+    return NextResponse.json({ error: "PDF download failed" }, { status: 500 });
+  }
+
+  const arrayBuffer = await blob.arrayBuffer();
+
+  return new NextResponse(arrayBuffer, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": "inline",
