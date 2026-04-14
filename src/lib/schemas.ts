@@ -88,6 +88,11 @@ export const UpdateCompanySchema = z.object({
 });
 export type UpdateCompanyInput = z.infer<typeof UpdateCompanySchema>;
 
+export const MergeCompanySchema = z.object({
+  targetId: z.string().uuid("Must be a valid company ID"),
+});
+export type MergeCompanyInput = z.infer<typeof MergeCompanySchema>;
+
 // ─── AI: Generate ─────────────────────────────────────────────────────────────
 
 export const GenerateRequestSchema = z.object({

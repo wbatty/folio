@@ -12,6 +12,7 @@ interface Company {
   site: string | null;
   jobListingIndex: string | null;
   lastCheckedAt: string | null;
+  lastAppliedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,56 +65,70 @@ export function CompaniesSection() {
         </div>
       ) : (
         <div className="space-y-1">
-          {companies.map((company) => (
-            <div
-              key={company.id}
-              className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 group"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <CompanyEditDialog company={company} onSaved={refresh} />
-                {company.jobListingIndex && (
-                  <a
-                    href={company.jobListingIndex}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-foreground shrink-0"
-                    title="Open job listings"
+          {companies.map((company) => {
+            const otherCompanies = companies
+              .filter((c) => c.id !== company.id)
+              .map((c) => ({ id: c.id, name: c.name }));
+
+            return (
+              <div
+                key={company.id}
+                className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 group"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <CompanyEditDialog
+                    company={company}
+                    otherCompanies={otherCompanies}
+                    onSaved={refresh}
+                  />
+                  {company.jobListingIndex && (
+                    <a
+                      href={company.jobListingIndex}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-foreground shrink-0"
+                      title="Open job listings"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                  {company.site && !company.jobListingIndex && (
+                    <a
+                      href={company.site}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-foreground shrink-0"
+                      title="Open company website"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {company.lastCheckedAt ? (
+                    <span className="text-xs text-muted-foreground">
+                      checked {new Date(company.lastCheckedAt).toLocaleDateString()}
+                    </span>
+                  ) : company.lastAppliedAt ? (
+                    <span className="text-xs text-muted-foreground/60">
+                      applied {new Date(company.lastAppliedAt).toLocaleDateString()}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground/50">never checked</span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Mark checked today"
+                    onClick={() => handleMarkChecked(company.id)}
                   >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
-                {company.site && !company.jobListingIndex && (
-                  <a
-                    href={company.site}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-foreground shrink-0"
-                    title="Open company website"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
+                    <Clock className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {company.lastCheckedAt ? (
-                  <span className="text-xs text-muted-foreground">
-                    checked {new Date(company.lastCheckedAt).toLocaleDateString()}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground/50">never checked</span>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Mark checked today"
-                  onClick={() => handleMarkChecked(company.id)}
-                >
-                  <Clock className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
