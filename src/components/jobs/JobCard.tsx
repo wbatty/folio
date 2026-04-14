@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "./StatusBadge";
 import { Loader2, ExternalLink } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
+import { PrivacyBlur } from "@/components/ui/privacy-blur";
 
 const ALL_STATUSES: { value: JobStatus; label: string }[] = [
   { value: "RESEARCHING", label: "Researching" },
@@ -66,11 +67,11 @@ export function JobCard({ job, onStatusChange, deleted }: JobCardProps) {
               )}
             </div>
             <p className="text-sm text-muted-foreground truncate">
-              {job.company ?? new URL(job.url).hostname}
+              <PrivacyBlur>{job.company ?? new URL(job.url).hostname}</PrivacyBlur>
             </p>
             <p className="text-xs text-muted-foreground/70 mt-1 flex items-center gap-1">
               <ExternalLink className="h-3 w-3" />
-              {new URL(job.url).hostname}
+              <PrivacyBlur>{new URL(job.url).hostname}</PrivacyBlur>
             </p>
           </Link>
 

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Briefcase, Loader2, ChevronRight } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
+import { PrivacyToggle } from "@/components/ui/privacy-toggle";
+import { usePrivacy } from "@/lib/privacy-context";
 
 interface Resume {
   id: string;
@@ -58,6 +60,7 @@ function isArchived(job: Job): boolean {
 }
 
 export default function HomePage() {
+  const { privacyMode } = usePrivacy();
   const [resume, setResume] = useState<Resume | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
@@ -175,6 +178,7 @@ export default function HomePage() {
             <h1 className="text-lg font-semibold text-foreground">DuckReports</h1>
           </div>
           <div className="flex items-center gap-2">
+          <PrivacyToggle />
           <CsvImportButton onImportComplete={refreshJobs} />
           <form onSubmit={handleAddJob} className="flex items-center gap-2">
             <div className="flex flex-col items-end">
@@ -200,7 +204,7 @@ export default function HomePage() {
       <main className="max-w-6xl mx-auto px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
           <aside className="space-y-6">
-            <MetricsSection />
+            {!privacyMode && <MetricsSection />}
             <ResumeSection resume={resume} onUpload={setResume} />
           </aside>
 

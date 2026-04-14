@@ -14,10 +14,13 @@ import { NotesSection } from "@/components/job-detail/NotesSection";
 import { QuestionsSection } from "@/components/job-detail/QuestionsSection";
 import { DuplicateJobs } from "@/components/job-detail/DuplicateJobs";
 import { ArrowLeft, ExternalLink, Loader2, Building2, MapPin, Trash2, AlertTriangle, RefreshCw, Copy } from "lucide-react";
+import { PrivacyToggle } from "@/components/ui/privacy-toggle";
+import { PrivacyBlur } from "@/components/ui/privacy-blur";
 import type { JobStatus } from "@/lib/schemas";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import Markdown from 'react-markdown'
 import DeleteJob from "@/components/job-detail/DeleteJob";
+import { EditJobDialog } from "@/components/job-detail/EditJobDialog";
 
 const ALL_STATUSES: { value: JobStatus; label: string }[] = [
   { value: "RESEARCHING", label: "Researching" },
@@ -173,19 +176,23 @@ export default function JobDetailPage() {
             {job.company && (
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Building2 className="h-3 w-3" />
-                {job.company}
+                <PrivacyBlur>{job.company}</PrivacyBlur>
               </p>
             )}
           </div>
-          <a
-            href={job.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title="Open job posting"
-          >
-            <ExternalLink className="h-4 w-4" />
-          </a>
+          <PrivacyBlur>
+            <a
+              href={job.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Open job posting"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </PrivacyBlur>
+          <PrivacyToggle />
+          <EditJobDialog job={job} onSave={(updated) => setJob((prev) => prev ? { ...prev, ...updated } : prev)} />
           <DeleteJob job={job} onDelete={() => router.push("/")} />
           {/* <Button
             variant="ghost"

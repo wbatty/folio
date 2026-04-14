@@ -91,6 +91,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       company: body.company,
       title: body.title,
       description: body.description,
+      description_full: body.descriptionFull,
       date_applied: body.dateApplied ? new Date(body.dateApplied).toISOString() : undefined,
     })
     .eq("id", id)

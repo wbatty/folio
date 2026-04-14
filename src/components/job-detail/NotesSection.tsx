@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, StickyNote } from "lucide-react";
+import { PrivacyBlur } from "@/components/ui/privacy-blur";
 
 interface Note {
   id: string;
@@ -68,7 +69,7 @@ export function NotesSection({ jobId, notes, onNoteAdded }: NotesSectionProps) {
               <p className="text-xs text-muted-foreground/70 mb-1">
                 {new Date(note.createdAt).toLocaleString()}
               </p>
-              <p className="text-sm text-foreground whitespace-pre-wrap">{note.content}</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap"><PrivacyBlur>{note.content}</PrivacyBlur></p>
             </div>
           ))}
         </div>
