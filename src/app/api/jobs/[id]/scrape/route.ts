@@ -3,6 +3,7 @@ import { spawn } from "child_process";
 import { chromium } from "playwright";
 import { supabase } from "@/lib/supabase";
 import { parseJob } from "@/lib/claude";
+import { matchOrCreateCompanyByName } from "@/lib/company-matching";
 
 async function runDecant(html: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -19,6 +20,20 @@ async function runDecant(html: string): Promise<string> {
     proc.stdin.write(html);
     proc.stdin.end();
   });
+}
+
+async function resolveCompanyId(jobId: string, extractedName: string | null | undefined): Promise<string | null> {
+  // If job already has a company_id (from URL matching at creation), preserve it
+  const { data: currentJob } = await supabase
+    .from("jobs")
+    .select("company_id")
+    .eq("id", jobId)
+    .single();
+
+  if (currentJob?.company_id) return currentJob.company_id;
+
+  // Otherwise match or create by extracted name
+  return matchOrCreateCompanyByName(extractedName);
 }
 
 async function extractAndUpdate(id: string, html: string) {
@@ -42,11 +57,14 @@ async function extractAndUpdate(id: string, html: string) {
   // 3. Extract structured data via Claude Agent SDK
   const { data: extracted, sessionId } = await parseJob(markdown.slice(0, 15000));
 
-  // 4. Update job with structured fields, session_id, and advance status
+  // 4. Resolve company_id (preserve existing URL match, or match/create by name)
+  const companyId = await resolveCompanyId(id, extracted.company);
+
+  // 5. Update job with structured fields, session_id, and advance status
   await supabase
     .from("jobs")
     .update({
-      company: extracted.company,
+      company_id: companyId,
       title: extracted.title,
       description: extracted.description,
       session_id: sessionId,
@@ -65,7 +83,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: job } = await supabase
     .from("jobs")
-    .select("id, url, description_full")
+    .select("id, url, description_full, company_id")
     .eq("id", id)
     .single();
 
@@ -78,10 +96,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     (async () => {
       try {
         const { data: extracted, sessionId } = await parseJob((job.description_full as string).slice(0, 15000));
+
+        // Preserve existing company_id or match/create by extracted name
+        const companyId = job.company_id ?? await matchOrCreateCompanyByName(extracted.company);
+
         await supabase
           .from("jobs")
           .update({
-            company: extracted.company,
+            company_id: companyId,
             title: extracted.title,
             description: extracted.description,
             session_id: sessionId,

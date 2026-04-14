@@ -17,7 +17,6 @@ import {
 
 interface JobFields {
   id: string;
-  company: string | null;
   title: string | null;
   description: string | null;
   descriptionFull: string | null;
@@ -26,7 +25,7 @@ interface JobFields {
 
 interface EditJobDialogProps {
   job: JobFields;
-  onSave: (updated: Partial<JobFields>) => void;
+  onSave: (updated: Partial<Omit<JobFields, "id">>) => void;
 }
 
 export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
@@ -34,7 +33,6 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [company, setCompany] = useState(job.company ?? "");
   const [title, setTitle] = useState(job.title ?? "");
   const [description, setDescription] = useState(job.description ?? "");
   const [descriptionFull, setDescriptionFull] = useState(job.descriptionFull ?? "");
@@ -45,7 +43,6 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
   function handleOpenChange(value: boolean) {
     if (value) {
       // Reset to current job values when opening
-      setCompany(job.company ?? "");
       setTitle(job.title ?? "");
       setDescription(job.description ?? "");
       setDescriptionFull(job.descriptionFull ?? "");
@@ -63,7 +60,6 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          company: company || null,
           title: title || null,
           description: description || null,
           descriptionFull: descriptionFull || null,
@@ -75,7 +71,6 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
         throw new Error(data.error ?? "Failed to save");
       }
       onSave({
-        company: company || null,
         title: title || null,
         description: description || null,
         descriptionFull: descriptionFull || null,
@@ -113,15 +108,6 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Software Engineer"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-company">Company</Label>
-            <Input
-              id="edit-company"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              placeholder="Acme Corp"
             />
           </div>
           <div className="space-y-1.5">

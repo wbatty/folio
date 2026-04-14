@@ -3,10 +3,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { ResumeSection } from "@/components/resume/ResumeSection";
 import { MetricsSection } from "@/components/jobs/MetricsSection";
+import { CompaniesSection } from "@/components/companies/CompaniesSection";
 import { JobCard } from "@/components/jobs/JobCard";
 import { CsvImportButton } from "@/components/jobs/CsvImportButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Briefcase, Loader2, ChevronRight } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
 import { PrivacyToggle } from "@/components/ui/privacy-toggle";
@@ -24,6 +26,7 @@ interface Job {
   id: string;
   url: string;
   company: string | null;
+  companyId: string | null;
   title: string | null;
   status: JobStatus;
   dateApplied: string | null;
@@ -208,12 +211,18 @@ export default function HomePage() {
             <ResumeSection resume={resume} onUpload={setResume} />
           </aside>
 
-          <section>
-            <div className="flex items-center justify-between mb-4 gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide shrink-0">
-                  Applications ({visibleJobs.length})
-                </h2>
+          <Tabs defaultValue="applications">
+            <TabsList variant="line">
+              <TabsTrigger variant="line" value="applications">
+                Applications ({visibleJobs.length})
+              </TabsTrigger>
+              <TabsTrigger variant="line" value="companies">
+                Companies
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="applications">
+              <div className="flex items-center justify-between mb-4 gap-4">
                 <Input
                   type="text"
                   placeholder="Filter by company…"
@@ -221,74 +230,78 @@ export default function HomePage() {
                   onChange={(e) => setCompanySearch(e.target.value)}
                   className="w-40 h-7 text-sm"
                 />
+                <div className="flex items-center gap-4 shrink-0">
+                  {(["denied", "withdrawn", "deleted"] as const).map((key) => {
+                    const checked = key === "denied" ? showDenied : key === "withdrawn" ? showWithdrawn : showDeleted;
+                    const setter = key === "denied" ? setShowDenied : key === "withdrawn" ? setShowWithdrawn : setShowDeleted;
+                    return (
+                      <label key={key} className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => setter(e.target.checked)}
+                          className="accent-foreground"
+                        />
+                        Show {key}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex items-center gap-4 shrink-0">
-                {(["denied", "withdrawn", "deleted"] as const).map((key) => {
-                  const checked = key === "denied" ? showDenied : key === "withdrawn" ? showWithdrawn : showDeleted;
-                  const setter = key === "denied" ? setShowDenied : key === "withdrawn" ? setShowWithdrawn : setShowDeleted;
-                  return (
-                    <label key={key} className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => setter(e.target.checked)}
-                        className="accent-foreground"
-                      />
-                      Show {key}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
 
-            {loadingJobs ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
-                ))}
-              </div>
-            ) : visibleJobs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Briefcase className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-muted-foreground font-medium">No applications yet</p>
-                <p className="text-muted-foreground text-sm mt-1">Paste a job URL above to get started</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {activeJobs.map((job) => (
-                  <JobCard
-                    key={job.id}
-                    job={job}
-                    onStatusChange={handleStatusChange}
-                    deleted={!!job.deletedAt}
-                  />
-                ))}
-                {archivedJobs.length > 0 && (
-                  <div className="mt-2">
-                    <button
-                      onClick={() => setShowArchived((v) => !v)}
-                      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors select-none w-full py-1"
-                    >
-                      <ChevronRight className={`h-3.5 w-3.5 transition-transform ${showArchived ? "rotate-90" : ""}`} />
-                      Archived ({archivedJobs.length})
-                    </button>
-                    {showArchived && (
-                      <div className="space-y-3 mt-2">
-                        {archivedJobs.map((job) => (
-                          <JobCard
-                            key={job.id}
-                            job={job}
-                            onStatusChange={handleStatusChange}
-                            deleted={!!job.deletedAt}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
+              {loadingJobs ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : visibleJobs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Briefcase className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground font-medium">No applications yet</p>
+                  <p className="text-muted-foreground text-sm mt-1">Paste a job URL above to get started</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activeJobs.map((job) => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      onStatusChange={handleStatusChange}
+                      deleted={!!job.deletedAt}
+                    />
+                  ))}
+                  {archivedJobs.length > 0 && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => setShowArchived((v) => !v)}
+                        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors select-none w-full py-1"
+                      >
+                        <ChevronRight className={`h-3.5 w-3.5 transition-transform ${showArchived ? "rotate-90" : ""}`} />
+                        Archived ({archivedJobs.length})
+                      </button>
+                      {showArchived && (
+                        <div className="space-y-3 mt-2">
+                          {archivedJobs.map((job) => (
+                            <JobCard
+                              key={job.id}
+                              job={job}
+                              onStatusChange={handleStatusChange}
+                              deleted={!!job.deletedAt}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="companies">
+              <CompaniesSection />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>

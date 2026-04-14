@@ -26,7 +26,7 @@ type JobStatus = (typeof ALL_STATUSES)[number];
 export async function GET() {
   const { data: jobs } = await supabase
     .from("jobs")
-    .select("status, company, status_logs(status, created_at)")
+    .select("status, company_id, status_logs(status, created_at)")
     .is("deleted_at", null);
 
   if (!jobs) {
@@ -40,7 +40,7 @@ export async function GET() {
   const activeInterviews = appliedJobs.filter((j) => INTERVIEWING_STATUSES.has(j.status)).length;
 
   const uniqueCompanies = new Set(
-    appliedJobs.map((j) => j.company).filter(Boolean)
+    appliedJobs.map((j) => j.company_id).filter(Boolean)
   ).size;
 
   // Compute avg time per state using status_logs

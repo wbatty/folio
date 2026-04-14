@@ -95,7 +95,7 @@ async function migrateResumes() {
 
 // ── Migrate jobs ──────────────────────────────────────────────────────────────
 
-async function migrateJobs(resumeIdMap) {
+async function migrateJobs() {
   const { rows } = await local.query(
     `SELECT id, url, company, title, description, "descriptionFull", status,
             "dateApplied", "resumeId", "deletedAt", "createdAt", "updatedAt"
@@ -108,6 +108,32 @@ async function migrateJobs(resumeIdMap) {
   const existingKeys = new Set(
     (existing ?? []).map((r) => `${r.url}::${new Date(r.created_at).toISOString()}`)
   );
+
+  // Build a company name → id map, seeding from existing companies and creating new ones
+  const { data: existingCompanies } = await supabase.from("companies").select("id, name");
+  const companyNameToId = new Map(
+    (existingCompanies ?? []).map((c) => [c.name.toLowerCase(), c.id])
+  );
+
+  // Collect unique company names not yet in the map
+  const newCompanyNames = [
+    ...new Set(
+      rows
+        .map((r) => r.company?.trim())
+        .filter((n) => n && !companyNameToId.has(n.toLowerCase()))
+    ),
+  ];
+
+  if (newCompanyNames.length) {
+    const { data: created, error } = await supabase
+      .from("companies")
+      .insert(newCompanyNames.map((name) => ({ name })))
+      .select("id, name");
+    if (error) throw new Error(`Failed to insert companies: ${error.message}`);
+    for (const c of created ?? []) {
+      companyNameToId.set(c.name.toLowerCase(), c.id);
+    }
+  }
 
   const idMap = new Map();
   const toInsert = [];
@@ -122,16 +148,20 @@ async function migrateJobs(resumeIdMap) {
       continue;
     }
 
+    const companyId = row.company?.trim()
+      ? companyNameToId.get(row.company.trim().toLowerCase()) ?? null
+      : null;
+
     toInsert.push({
       id: newId,
       url: row.url,
-      company: row.company ?? null,
+      company_id: companyId,
       title: row.title ?? null,
       description: row.description ?? null,
       description_full: row.descriptionFull ?? null,
       status: row.status,
       date_applied: row.dateApplied ?? null,
-      resume_id: row.resumeId ? (resumeIdMap.get(row.resumeId) ?? null) : null,
+      resume_id: "eb1fa4c1-45a3-4f4b-b9aa-647788538135",
       deleted_at: row.deletedAt ?? null,
       session_id: null,
       created_at: row.createdAt,
@@ -294,11 +324,11 @@ async function main() {
   await local.query("SELECT 1"); // smoke test
   console.log("Connected.\n");
 
-  console.log("Migrating resumes...");
-  const resumeIdMap = await migrateResumes();
+  // console.log("Migrating resumes...");
+  // const resumeIdMap = await migrateResumes();
 
   console.log("Migrating jobs...");
-  const jobIdMap = await migrateJobs(resumeIdMap);
+  const jobIdMap = await migrateJobs();
 
   console.log("Migrating status_logs...");
   await migrateStatusLogs(jobIdMap);

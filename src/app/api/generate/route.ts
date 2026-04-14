@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   // Load job and resume
   const { data: rawJob } = await supabase
     .from("jobs")
-    .select("*, resume:resumes(*)")
+    .select("*, companies(name), resume:resumes(*)")
     .eq("id", jobId)
     .single();
   const job = rawJob as unknown as Record<string, unknown> | null;
@@ -93,9 +93,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const companyJoin = job.companies as { name: string } | null;
   const systemPrompt = buildSystemPrompt(
     resume.content as string,
-    job.company as string,
+    (companyJoin?.name ?? null) as string,
     job.title as string,
     job.description_full as string | null
   );

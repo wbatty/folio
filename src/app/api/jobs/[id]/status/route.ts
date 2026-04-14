@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ...(status === "APPLIED" ? { date_applied: new Date().toISOString() } : {}),
     })
     .eq("id", id)
-    .select()
+    .select("*, companies(name)")
     .single();
 
   if (jobError || !job) {
@@ -31,10 +31,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from("status_logs")
     .insert({ job_id: id, status, note });
 
+  const companyJoin = (job as unknown as Record<string, unknown>).companies as { name: string } | null;
+
   return NextResponse.json({
     id: job.id,
     url: job.url,
-    company: job.company,
+    company: companyJoin?.name ?? null,
+    companyId: job.company_id ?? null,
     title: job.title,
     description: job.description,
     status: job.status,

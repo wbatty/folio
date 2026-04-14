@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { CsvImportSchema } from "@/lib/schemas";
+import { matchOrCreateCompanyByName } from "@/lib/company-matching";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -17,11 +18,13 @@ export async function POST(req: NextRequest) {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
+      const companyId = await matchOrCreateCompanyByName(row.company ?? null);
+
       const { data: job, error: jobError } = await supabase
         .from("jobs")
         .insert({
           url: row.url,
-          company: row.company ?? null,
+          company_id: companyId,
           title: row.title ?? null,
           status: row.status,
           date_applied: row.dateApplied ?? null,

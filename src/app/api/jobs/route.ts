@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { CreateJobSchema } from "@/lib/schemas";
+import { matchCompanyByUrl } from "@/lib/company-matching";
 
 export async function GET(req: NextRequest) {
   const showDeleted = req.nextUrl.searchParams.get("showDeleted") === "true";
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("jobs")
-    .select("*, status_logs(status, note, created_at), questions(count), notes(count)")
+    .select("*, companies(name), status_logs(status, note, created_at), questions(count), notes(count)")
     .order("created_at", { ascending: false });
 
   if (!showDeleted) {
@@ -28,10 +29,12 @@ export async function GET(req: NextRequest) {
     const sortedLogs = [...(job.status_logs ?? [])].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
+    const companyJoin = job.companies as { name: string } | null;
     return {
       id: job.id,
       url: job.url,
-      company: job.company,
+      company: companyJoin?.name ?? null,
+      companyId: job.company_id ?? null,
       title: job.title,
       description: job.description,
       status: job.status,
@@ -72,9 +75,12 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .single();
 
+  // Stage 1: URL-based company matching (before scrape)
+  const companyId = await matchCompanyByUrl(url);
+
   const { data: job, error: jobError } = await supabase
     .from("jobs")
-    .insert({ url, resume_id: resume?.id ?? null, status: "RESEARCHING" })
+    .insert({ url, resume_id: resume?.id ?? null, status: "RESEARCHING", company_id: companyId })
     .select()
     .single();
 
@@ -95,7 +101,8 @@ export async function POST(req: NextRequest) {
     {
       id: job.id,
       url: job.url,
-      company: job.company,
+      company: null, // company name not yet known (comes from scrape)
+      companyId: job.company_id ?? null,
       title: job.title,
       description: job.description,
       status: job.status,

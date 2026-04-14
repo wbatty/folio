@@ -71,6 +71,23 @@ export const CsvImportSchema = z.object({
 });
 export type CsvImportInput = z.infer<typeof CsvImportSchema>;
 
+// ─── Companies ────────────────────────────────────────────────────────────────
+
+export const CreateCompanySchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  site: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  job_listing_index: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+});
+export type CreateCompanyInput = z.infer<typeof CreateCompanySchema>;
+
+export const UpdateCompanySchema = z.object({
+  name: z.string().min(1).optional(),
+  site: z.string().url().optional().nullable(),
+  job_listing_index: z.string().url().optional().nullable(),
+  last_checked_at: z.string().datetime().optional().nullable(),
+});
+export type UpdateCompanyInput = z.infer<typeof UpdateCompanySchema>;
+
 // ─── AI: Generate ─────────────────────────────────────────────────────────────
 
 export const GenerateRequestSchema = z.object({

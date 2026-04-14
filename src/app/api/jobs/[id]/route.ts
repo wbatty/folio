@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
 function mapJob(job: Record<string, unknown>) {
+  const companyJoin = job.companies as { name: string } | null;
   return {
     id: job.id,
     url: job.url,
-    company: job.company,
+    company: companyJoin?.name ?? null,
+    companyId: job.company_id ?? null,
     title: job.title,
     description: job.description,
     descriptionFull: job.description_full,
@@ -38,8 +40,9 @@ function mapJob(job: Record<string, unknown>) {
     }),
     duplicates: ((job.duplicates as unknown[]) ?? []).map((d: unknown) => {
       const dup = d as Record<string, unknown>;
-      return {id: dup.id, company: dup.company, title: dup.title, status: dup.status};
-    })
+      const dupCompany = dup.companies as { name: string } | null;
+      return { id: dup.id, company: dupCompany?.name ?? null, title: dup.title, status: dup.status };
+    }),
   };
 }
 
@@ -48,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: job } = await supabase
     .from("jobs")
-    .select("*, resume:resumes(id, filename), status_logs(*), questions(*), notes(*)")
+    .select("*, companies(name), resume:resumes(id, filename), status_logs(*), questions(*), notes(*)")
     .eq("id", id)
     .single();
 
@@ -58,7 +61,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const duplicateJobs = await supabase
     .from("jobs")
-    .select("id, company, title, status")
+    .select("id, companies(name), title, status")
     .eq("url", job.url)
     .neq("id", id)
     .is("deleted_at", null);
@@ -88,24 +91,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { data: job, error } = await supabase
     .from("jobs")
     .update({
-      company: body.company,
       title: body.title,
       description: body.description,
       description_full: body.descriptionFull,
       date_applied: body.dateApplied ? new Date(body.dateApplied).toISOString() : undefined,
     })
     .eq("id", id)
-    .select()
+    .select("*, companies(name)")
     .single();
 
   if (error || !job) {
     return NextResponse.json({ error: error?.message ?? "Update failed" }, { status: 500 });
   }
 
+  const companyJoin = (job as unknown as Record<string, unknown>).companies as { name: string } | null;
+
   return NextResponse.json({
     id: job.id,
     url: job.url,
-    company: job.company,
+    company: companyJoin?.name ?? null,
+    companyId: job.company_id ?? null,
     title: job.title,
     description: job.description,
     status: job.status,
