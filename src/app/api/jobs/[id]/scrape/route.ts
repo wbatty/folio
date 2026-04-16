@@ -1,29 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { spawn } from "child_process";
-import { chromium } from "playwright";
 import { supabase } from "@/lib/supabase";
 import { parseJob } from "@/lib/claude";
 import { matchOrCreateCompanyByName } from "@/lib/company-matching";
 
-async function runDecant(html: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("decant", ["clean"], { env: { ...process.env, PATH: process.env.PATH + ":/usr/local/bin:/home/root/.local/bin" } });
-    let out = "";
-    let err = "";
-    proc.stdout.on("data", (d) => (out += d.toString()));
-    proc.stderr.on("data", (d) => (err += d.toString()));
-    proc.on("close", (code) => {
-      if (code === 0) resolve(out);
-      else reject(new Error(`decant exited ${code}: ${err}`));
-    });
-    proc.on("error", reject);
-    proc.stdin.write(html);
-    proc.stdin.end();
-  });
-}
-
 async function resolveCompanyId(jobId: string, extractedName: string | null | undefined): Promise<string | null> {
-  // If job already has a company_id (from URL matching at creation), preserve it
   const { data: currentJob } = await supabase
     .from("jobs")
     .select("company_id")
@@ -32,49 +12,52 @@ async function resolveCompanyId(jobId: string, extractedName: string | null | un
 
   if (currentJob?.company_id) return currentJob.company_id;
 
-  // Otherwise match or create by extracted name
   return matchOrCreateCompanyByName(extractedName);
 }
 
-async function extractAndUpdate(id: string, html: string) {
-  // 1. Clean HTML to markdown
-  let markdown = html;
-  try {
-    markdown = await runDecant(html);
-  } catch {
-    // decant not available, strip tags and fall back to plain text
-    markdown = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 20000);
-  }
+async function runExtraction(id: string, input: { url: string } | { html: string }) {
+  const { data: extracted, sessionId, costUsd } = await parseJob(input);
 
-  // 2. Save full description so we can re-run extraction without re-scraping
-  await supabase.from("jobs").update({ description_full: markdown }).eq("id", id);
-  await supabase.from("status_logs").insert({
-    job_id: id,
-    status: "RESEARCHING",
-    note: "Full description scraped",
-  });
-
-  // 3. Extract structured data via Claude Agent SDK
-  const { data: extracted, sessionId } = await parseJob(markdown.slice(0, 15000));
-
-  // 4. Resolve company_id (preserve existing URL match, or match/create by name)
   const companyId = await resolveCompanyId(id, extracted.company);
 
-  // 5. Update job with structured fields, session_id, and advance status
+  // Fetch current cost to accumulate
+  const { data: currentJob } = await supabase
+    .from("jobs")
+    .select("claude_cost_usd, company_id")
+    .eq("id", id)
+    .single();
+
+  const accumulatedCost = (currentJob?.claude_cost_usd ?? 0) + costUsd;
+
   await supabase
     .from("jobs")
     .update({
-      company_id: companyId,
+      company_id: currentJob?.company_id ?? companyId,
       title: extracted.title,
       description: extracted.description,
+      description_full: extracted.fullJobPostingHtml ?? ("html" in input ? input.html : null),
       session_id: sessionId,
       status: "PENDING_APPLICATION",
+      company_website: extracted.companyWebsite ?? null,
+      company_summary: extracted.companySummary ?? null,
+      work_style: extracted.workStyle ?? null,
+      required_skills: extracted.requiredSkills ?? null,
+      preferred_skills: extracted.preferredSkills ?? null,
+      primary_languages: extracted.primaryLanguages ?? null,
+      frameworks: extracted.frameworks ?? null,
+      role_classification: extracted.roleClassification ?? null,
+      position_summary: extracted.positionSummary ?? null,
+      compensation: extracted.compensation ?? null,
+      benefits: extracted.benefits ?? null,
+      flags: extracted.flags ?? null,
+      claude_cost_usd: accumulatedCost,
     })
     .eq("id", id);
+
   await supabase.from("status_logs").insert({
     job_id: id,
     status: "PENDING_APPLICATION",
-    note: "Research complete",
+    note: `Research complete (cost: $${costUsd.toFixed(4)})`,
   });
 }
 
@@ -91,30 +74,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
-  // If we already have the full description, re-run extraction without re-scraping
+  // If we already have the full description, re-run extraction without re-fetching
   if (job.description_full) {
     (async () => {
       try {
-        const { data: extracted, sessionId } = await parseJob((job.description_full as string).slice(0, 15000));
-
-        // Preserve existing company_id or match/create by extracted name
-        const companyId = job.company_id ?? await matchOrCreateCompanyByName(extracted.company);
-
-        await supabase
-          .from("jobs")
-          .update({
-            company_id: companyId,
-            title: extracted.title,
-            description: extracted.description,
-            session_id: sessionId,
-            status: "PENDING_APPLICATION",
-          })
-          .eq("id", id);
-        await supabase.from("status_logs").insert({
-          job_id: id,
-          status: "PENDING_APPLICATION",
-          note: "Research complete",
-        });
+        await runExtraction(id, { html: job.description_full as string });
       } catch (err) {
         console.error("Extraction failed for job", id, err);
         await supabase.from("jobs").update({ status: "RESEARCH_ERROR" }).eq("id", id);
@@ -136,7 +100,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       manualHtml = body.html;
     }
   } catch {
-    // No body / not JSON — proceed with scrape
+    // No body / not JSON — proceed with URL-based extraction
   }
 
   // Reset to RESEARCHING so the UI knows work is in progress
@@ -147,25 +111,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     note: manualHtml ? "Retrying with manual HTML" : "Retrying scrape",
   });
 
-  // Kick off async without blocking the response
   (async () => {
     try {
-      let html: string;
-
-      if (manualHtml) {
-        html = manualHtml;
-      } else {
-        const browser = await chromium.launch({ headless: true });
-        try {
-          const page = await browser.newPage();
-          await page.goto(job.url, { waitUntil: "networkidle", timeout: 30000 });
-          html = await page.content();
-        } finally {
-          await browser.close();
-        }
-      }
-
-      await extractAndUpdate(id, html);
+      const input = manualHtml ? { html: manualHtml } : { url: job.url as string };
+      await runExtraction(id, input);
     } catch (err) {
       console.error("Scrape failed for job", id, err);
       await supabase.from("jobs").update({ status: "RESEARCH_ERROR" }).eq("id", id);
