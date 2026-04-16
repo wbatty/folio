@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "consumer": "tsx scripts/queue-consumer.ts",
+    "setup-webhook": "tsx scripts/setup-telegram-webhook.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.104",
@@ -47,8 +49,10 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "@types/pg": "^8.11.14",
     "pg": "^8.20.0",
     "tailwindcss": "^4.2.2",
+    "tsx": "^4.19.4",
     "typescript": "^5"
   }
 }
