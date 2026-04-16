@@ -18,8 +18,31 @@ export type JobStatus = z.infer<typeof JobStatusEnum>;
 
 export const JobExtractionSchema = z.object({
   company: z.string(),
+  companyWebsite: z.string().optional(),
+  companySummary: z.string().optional(),
   title: z.string(),
   description: z.string(),
+  workStyle: z.enum(["remote", "hybrid", "on-site"]).optional(),
+  requiredSkills: z.array(z.string()).optional(),
+  preferredSkills: z.array(z.string()).optional(),
+  primaryLanguages: z.array(z.string()).optional(),
+  frameworks: z.array(z.string()).optional(),
+  roleClassification: z.enum([
+    "Frontend Only",
+    "Frontend-Leaning Fullstack",
+    "True Fullstack",
+    "Backend-Leaning Fullstack",
+    "Backend Only",
+  ]).optional(),
+  positionSummary: z.string().optional(),
+  compensation: z.record(z.unknown()).optional(),
+  benefits: z.array(z.string()).optional(),
+  flags: z.object({
+    green: z.array(z.string()),
+    yellow: z.array(z.string()),
+    red: z.array(z.string()),
+  }).optional(),
+  fullJobPostingHtml: z.string().optional(),
 });
 export type JobExtraction = z.infer<typeof JobExtractionSchema>;
 
