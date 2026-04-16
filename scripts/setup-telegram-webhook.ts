@@ -1,18 +1,21 @@
 /**
  * One-time script to register the Telegram webhook with Telegram's servers.
  *
- * Run once after deploying the app:
+ * Run once after deploying the Edge Function:
  *   npm run setup-webhook
  *
  * Required env vars:
- *   TELEGRAM_BOT_TOKEN     — Bot token from @BotFather
- *   TELEGRAM_WEBHOOK_SECRET — Secret token for validating incoming webhook requests
- *   APP_URL                — Public HTTPS URL of the deployed app (e.g. https://yourapp.com)
+ *   TELEGRAM_BOT_TOKEN       — Bot token from @BotFather
+ *   TELEGRAM_WEBHOOK_SECRET  — Secret token for validating incoming webhook requests
+ *   NEXT_PUBLIC_SUPABASE_URL — Your Supabase project URL (e.g. https://<ref>.supabase.co)
+ *
+ * The webhook is registered to the Supabase Edge Function URL:
+ *   https://<ref>.supabase.co/functions/v1/telegram-webhook
  */
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-const appUrl = process.env.APP_URL?.replace(/\/$/, "");
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
 
 if (!token) {
   console.error("Error: TELEGRAM_BOT_TOKEN is not set");
@@ -22,12 +25,12 @@ if (!secret) {
   console.error("Error: TELEGRAM_WEBHOOK_SECRET is not set");
   process.exit(1);
 }
-if (!appUrl) {
-  console.error("Error: APP_URL is not set");
+if (!supabaseUrl) {
+  console.error("Error: NEXT_PUBLIC_SUPABASE_URL is not set");
   process.exit(1);
 }
 
-const webhookUrl = `${appUrl}/api/telegram/webhook`;
+const webhookUrl = `${supabaseUrl}/functions/v1/telegram-webhook`;
 const apiBase = `https://api.telegram.org/bot${token}`;
 
 async function setWebhook(): Promise<void> {

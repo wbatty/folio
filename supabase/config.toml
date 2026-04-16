@@ -1,0 +1,16 @@
+# Supabase project configuration
+# Replace "your-project-id" with your actual project reference ID
+# (found in the Supabase dashboard under Project Settings → General)
+project_id = "your-project-id"
+
+[functions.telegram-webhook]
+# Telegram sends requests without a Supabase JWT — secret validation is handled
+# inside the function via TELEGRAM_WEBHOOK_SECRET
+verify_jwt = false
+
+[functions.queue-consumer]
+verify_jwt = false
+# Run the queue consumer every minute.
+# Tighten to "*/30 * * * * *" (every 30s) once Supabase supports sub-minute schedules
+# on your plan, or loosen to "*/5 * * * *" (every 5 min) to reduce invocations.
+schedule = "*/1 * * * *"
