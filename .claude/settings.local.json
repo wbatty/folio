@@ -15,7 +15,11 @@
       "Read(//private/tmp/**)",
       "Bash(curl -s -X POST http://localhost:3000/api/jobs/import -H 'Content-Type: application/json' -d '{:*)",
       "Bash(python3 -m json.tool)",
-      "Bash(node -e \"require\\(''pg''\\)\")"
+      "Bash(node -e \"require\\(''pg''\\)\")",
+      "Bash(supabase --version)",
+      "Bash(npx supabase:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { UpdateCompanySchema } from "@/lib/schemas";
+import type { Database } from "@/types/supabase";
+
+type CompanyUpdate = Database["public"]["Tables"]["companies"]["Update"];
 
 export async function PATCH(
   req: NextRequest,
@@ -13,7 +16,7 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const updates: Record<string, unknown> = {};
+  const updates: CompanyUpdate = {};
   if (parsed.data.name !== undefined) updates.name = parsed.data.name;
   if ("site" in parsed.data) updates.site = parsed.data.site ?? null;
   if ("job_listing_index" in parsed.data) updates.job_listing_index = parsed.data.job_listing_index ?? null;

@@ -62,5 +62,12 @@ async function getWebhookInfo(): Promise<void> {
   }
 }
 
-await setWebhook();
-await getWebhookInfo();
+async function main() {
+  await setWebhook();
+  await getWebhookInfo();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

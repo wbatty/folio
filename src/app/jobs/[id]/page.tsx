@@ -67,7 +67,7 @@ interface Job {
   statusLogs: StatusLogEntry[];
   questions: Question[];
   notes: Note[];
-  duplicates?: string[]; // IDs of duplicate jobs with the same URL
+  duplicates?: { id: string; company: string; title: string; status: JobStatus }[];
 }
 
 export default function JobDetailPage() {

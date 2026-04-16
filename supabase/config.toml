@@ -7,10 +7,3 @@ project_id = "your-project-id"
 # Telegram sends requests without a Supabase JWT — secret validation is handled
 # inside the function via TELEGRAM_WEBHOOK_SECRET
 verify_jwt = false
-
-[functions.queue-consumer]
-verify_jwt = false
-# Run the queue consumer every minute.
-# Tighten to "*/30 * * * * *" (every 30s) once Supabase supports sub-minute schedules
-# on your plan, or loosen to "*/5 * * * *" (every 5 min) to reduce invocations.
-schedule = "*/1 * * * *"

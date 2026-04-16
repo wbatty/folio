@@ -36,13 +36,16 @@ export async function parseJob(jobDescription: string): Promise<{ data: z.infer<
 }
 
 export async function* generateWithSession(
-  sessionId: string,
+  _sessionId: string,
   prompt: string
 ): AsyncGenerator<string> {
+  let yieldedText = false;
+  let resultText: string | null = null;
+
   for await (const message of query({
     prompt,
     options: {
-      resume: sessionId,
+      // resume: sessionId,
       maxTurns: 3,
       permissionMode: "bypassPermissions",
       allowDangerouslySkipPermissions: true,
@@ -54,8 +57,15 @@ export async function* generateWithSession(
       message.event.type === "content_block_delta" &&
       message.event.delta.type === "text_delta"
     ) {
+      yieldedText = true;
       yield message.event.delta.text;
+    } else if (message.type === "result" && message.subtype === "success") {
+      resultText = message.result;
     }
+  }
+
+  if (!yieldedText && resultText) {
+    yield resultText;
   }
 }
 
