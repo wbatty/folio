@@ -19,6 +19,19 @@ function mapJob(job: Record<string, unknown>) {
     updatedAt: job.updated_at,
     resume: job.resume,
     sessionId: job.session_id,
+    companyWebsite: job.company_website ?? null,
+    companySummary: job.company_summary ?? null,
+    workStyle: job.work_style ?? null,
+    requiredSkills: job.required_skills ?? null,
+    preferredSkills: job.preferred_skills ?? null,
+    primaryLanguages: job.primary_languages ?? null,
+    frameworks: job.frameworks ?? null,
+    roleClassification: job.role_classification ?? null,
+    positionSummary: job.position_summary ?? null,
+    compensation: job.compensation ?? null,
+    benefits: job.benefits ?? null,
+    flags: job.flags ?? null,
+    claudeCostUsd: job.claude_cost_usd ?? 0,
     statusLogs: ((job.status_logs as unknown[]) ?? []).map((l: unknown) => {
       const log = l as Record<string, unknown>;
       return { id: log.id, status: log.status, note: log.note, createdAt: log.created_at };

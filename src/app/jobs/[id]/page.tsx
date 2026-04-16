@@ -13,6 +13,7 @@ import { StatusLog } from "@/components/job-detail/StatusLog";
 import { NotesSection } from "@/components/job-detail/NotesSection";
 import { QuestionsSection } from "@/components/job-detail/QuestionsSection";
 import { DuplicateJobs } from "@/components/job-detail/DuplicateJobs";
+import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ExternalLink, Loader2, Building2, MapPin, Trash2, AlertTriangle, RefreshCw, Copy } from "lucide-react";
 import { PrivacyToggle } from "@/components/ui/privacy-toggle";
 import { PrivacyBlur } from "@/components/ui/privacy-blur";
@@ -52,6 +53,12 @@ interface Note {
   createdAt: string;
 }
 
+interface Flags {
+  green: string[];
+  yellow: string[];
+  red: string[];
+}
+
 interface Job {
   id: string;
   url: string;
@@ -67,7 +74,20 @@ interface Job {
   statusLogs: StatusLogEntry[];
   questions: Question[];
   notes: Note[];
-  duplicates?: string[]; // IDs of duplicate jobs with the same URL
+  duplicates?: string[];
+  companyWebsite: string | null;
+  companySummary: string | null;
+  workStyle: string | null;
+  requiredSkills: string[] | null;
+  preferredSkills: string[] | null;
+  primaryLanguages: string[] | null;
+  frameworks: string[] | null;
+  roleClassification: string | null;
+  positionSummary: string | null;
+  compensation: Record<string, unknown> | null;
+  benefits: string[] | null;
+  flags: Flags | null;
+  claudeCostUsd: number;
 }
 
 export default function JobDetailPage() {
@@ -215,8 +235,20 @@ export default function JobDetailPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <StatusBadge status={job.status} />
+                {job.workStyle && (
+                  <Badge variant="outline" className={
+                    job.workStyle === "remote" ? "border-green-500 text-green-700 dark:text-green-400" :
+                    job.workStyle === "hybrid" ? "border-amber-500 text-amber-700 dark:text-amber-400" :
+                    "border-blue-500 text-blue-700 dark:text-blue-400"
+                  }>
+                    {job.workStyle}
+                  </Badge>
+                )}
+                {job.roleClassification && (
+                  <Badge variant="secondary" className="text-xs">{job.roleClassification}</Badge>
+                )}
                 {job.dateApplied && (
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
@@ -226,6 +258,11 @@ export default function JobDetailPage() {
                 {job.resume && (
                   <span className="text-xs text-muted-foreground/70">
                     Resume: {job.resume.filename}
+                  </span>
+                )}
+                {job.claudeCostUsd > 0 && (
+                  <span className="text-xs text-muted-foreground/60" title="Accumulated Claude API cost">
+                    AI cost: ${job.claudeCostUsd.toFixed(4)}
                   </span>
                 )}
                 {job.sessionId && (
@@ -316,6 +353,139 @@ export default function JobDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
           <div className="space-y-6">
+            {/* Position Summary */}
+            {job.positionSummary && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-foreground">Position Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{job.positionSummary}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Skills */}
+            {(job.requiredSkills?.length || job.preferredSkills?.length || job.primaryLanguages?.length || job.frameworks?.length) ? (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-foreground">Skills</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {!!job.requiredSkills?.length && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Required</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {job.requiredSkills.map((s) => <Badge key={s} variant="secondary">{s}</Badge>)}
+                      </div>
+                    </div>
+                  )}
+                  {!!job.preferredSkills?.length && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Preferred</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {job.preferredSkills.map((s) => <Badge key={s} variant="outline">{s}</Badge>)}
+                      </div>
+                    </div>
+                  )}
+                  {!!job.primaryLanguages?.length && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Languages</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {job.primaryLanguages.map((s) => <Badge key={s}>{s}</Badge>)}
+                      </div>
+                    </div>
+                  )}
+                  {!!job.frameworks?.length && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Frameworks</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {job.frameworks.map((s) => <Badge key={s} variant="outline">{s}</Badge>)}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {/* Compensation & Benefits */}
+            {(job.compensation && Object.keys(job.compensation).length > 0) || job.benefits?.length ? (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-foreground">Compensation & Benefits</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {job.compensation && Object.keys(job.compensation).length > 0 && (
+                    <div className="text-sm space-y-1">
+                      {Object.entries(job.compensation).map(([k, v]) => (
+                        <div key={k} className="flex gap-2">
+                          <span className="text-muted-foreground capitalize min-w-20">{k}:</span>
+                          <span className="text-foreground">{String(v)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!!job.benefits?.length && (
+                    <ul className="space-y-1">
+                      {job.benefits.map((b) => (
+                        <li key={b} className="text-sm text-muted-foreground flex items-start gap-2">
+                          <span className="text-green-500 shrink-0 mt-0.5">✓</span>
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {/* Flags */}
+            {(job.flags?.green?.length || job.flags?.yellow?.length || job.flags?.red?.length) ? (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-foreground">Highlights & Red Flags</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {!!job.flags!.green?.length && (
+                    <div>
+                      <p className="text-xs font-medium text-green-600 dark:text-green-400 mb-1.5">Green Flags</p>
+                      <ul className="space-y-1">
+                        {job.flags!.green.map((f) => (
+                          <li key={f} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <span className="text-green-500 shrink-0 mt-0.5">✓</span>{f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {!!job.flags!.yellow?.length && (
+                    <div>
+                      <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1.5">Yellow Flags</p>
+                      <ul className="space-y-1">
+                        {job.flags!.yellow.map((f) => (
+                          <li key={f} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>{f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {!!job.flags!.red?.length && (
+                    <div>
+                      <p className="text-xs font-medium text-red-600 dark:text-red-400 mb-1.5">Red Flags</p>
+                      <ul className="space-y-1">
+                        {job.flags!.red.map((f) => (
+                          <li key={f} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <span className="text-red-500 shrink-0 mt-0.5">✗</span>{f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+
             {/* Job Description */}
             {job.description && (
               <Card>
@@ -379,8 +549,34 @@ export default function JobDetailPage() {
             </Card>
           </div>
 
-          {/* Status History */}
-          <aside>
+          {/* Sidebar */}
+          <aside className="space-y-6">
+            {/* Company */}
+            {(job.companyWebsite || job.companySummary) && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-foreground">Company</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {job.companyWebsite && (
+                    <a
+                      href={job.companyWebsite}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary flex items-center gap-1 hover:underline truncate"
+                    >
+                      <ExternalLink className="h-3 w-3 shrink-0" />
+                      {job.companyWebsite}
+                    </a>
+                  )}
+                  {job.companySummary && (
+                    <p className="text-sm text-muted-foreground leading-relaxed">{job.companySummary}</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Status History */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold text-foreground">Status History</CardTitle>
