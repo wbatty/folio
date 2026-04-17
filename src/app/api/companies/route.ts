@@ -22,7 +22,7 @@ export async function GET() {
   const lastAppliedMap: Record<string, string> = {};
   for (const row of appliedRows ?? []) {
     if (row.company_id && !lastAppliedMap[row.company_id]) {
-      lastAppliedMap[row.company_id] = row.date_applied;
+      lastAppliedMap[row.company_id] = row.date_applied!;
     }
   }
 
