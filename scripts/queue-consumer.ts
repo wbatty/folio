@@ -93,7 +93,7 @@ async function poll(): Promise<void> {
     for (const msg of rows) {
       try {
         await processMessage(msg);
-        await client.query("SELECT pgmq.archive($1, $2)", [QUEUE_NAME, msg.msg_id]);
+        await client.query("SELECT pgmq.archive($1::text, $2::bigint)", [QUEUE_NAME, msg.msg_id]);
       } catch (err) {
         console.error(`Failed to process message ${msg.msg_id}:`, err);
         // Leave the message in the queue; it will become visible again after
@@ -107,7 +107,7 @@ async function poll(): Promise<void> {
           );
         }
         // Archive to avoid infinite retries on permanently broken messages
-        await client.query("SELECT pgmq.archive($1, $2)", [QUEUE_NAME, msg.msg_id]);
+        await client.query("SELECT pgmq.archive($1::text, $2::bigint)", [QUEUE_NAME, msg.msg_id]);
       }
     }
   } finally {

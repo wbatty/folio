@@ -23,6 +23,7 @@ interface Metrics {
   avgTimePerState: Record<string, number | null>;
   totalAppliedCount: number;
   activeInterviews: number;
+  denied: number;
 }
 
 function countWeekdays(start: Date, end: Date): number {
@@ -102,7 +103,8 @@ export function MetricsSection() {
               <span className="font-medium text-right">{metrics.activeInterviews}</span>
               <span className="text-muted-foreground">Positions applied</span>
               <span className="font-medium text-right">{metrics.totalApplied}</span>
-
+              <span className="text-muted-foreground">Denied</span>
+              <span className="font-medium text-right">{metrics.denied}</span>
               <span className="text-muted-foreground">Unique companies</span>
               <span className="font-medium text-right">{metrics.uniqueCompanies}</span>
 

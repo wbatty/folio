@@ -19,7 +19,8 @@
       "Bash(supabase --version)",
       "Bash(npx supabase:*)",
       "Bash(echo \"exit: $?\")",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(ls /mnt/c/Users/willb/repos/duckreports/.env*)"
     ]
   }
 }

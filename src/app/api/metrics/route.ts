@@ -39,6 +39,8 @@ export async function GET() {
   
   const activeInterviews = appliedJobs.filter((j) => INTERVIEWING_STATUSES.has(j.status)).length;
 
+  const denied = appliedJobs.filter((j) => j.status === "DENIED").length;
+
   const uniqueCompanies = new Set(
     appliedJobs.map((j) => j.company_id).filter(Boolean)
   ).size;
@@ -73,5 +75,5 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ totalApplied, uniqueCompanies, avgTimePerState, totalAppliedCount: totalApplied, activeInterviews});
+  return NextResponse.json({ totalApplied, uniqueCompanies, avgTimePerState, totalAppliedCount: totalApplied, activeInterviews, denied});
 }
