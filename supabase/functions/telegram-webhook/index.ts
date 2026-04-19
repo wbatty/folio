@@ -83,12 +83,32 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   }
 
-  // Enqueue the URL via the public RPC wrapper
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Duplicate check: skip queue and notify user if URL already exists
+  const { data: existing } = await supabase
+    .from("jobs")
+    .select("id, title, status, companies(name)")
+    .eq("url", jobUrl)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (existing) {
+    const company = (existing.companies as { name: string } | null)?.name;
+    const label = [existing.title, company].filter(Boolean).join(" at ") || jobUrl;
+    await sendMessage(
+      chatId,
+      `This job is already in your list!\n\n${label}\nStatus: ${existing.status}\n\nNo duplicate was added.`
+    );
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Enqueue the URL via the public RPC wrapper
   const { error } = await supabase.rpc("send_job_ingest", {
     msg: { url: jobUrl, chat_id: chatId },
   });
