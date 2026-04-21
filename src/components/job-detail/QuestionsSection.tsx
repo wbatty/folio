@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { GenerateResponseDialog } from "./GenerateResponseDialog";
-import { Plus, Sparkles, CheckCircle2, ChevronDown, ChevronUp, Trash2, Loader2 } from "lucide-react";
+import { Plus, Sparkles, CheckCircle2, ChevronDown, ChevronUp, Trash2, Loader2, Copy, Check } from "lucide-react";
 import { PrivacyBlur } from "@/components/ui/privacy-blur";
 
 interface Question {
@@ -32,6 +32,13 @@ export function QuestionsSection({ jobId, questions, onQuestionsChange }: Questi
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [generateFor, setGenerateFor] = useState<Question | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  function handleCopy(qid: string, text: string) {
+    navigator.clipboard.writeText(text);
+    setCopiedId(qid);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
 
   async function handleAddQuestion() {
     if (!newQuestion.trim()) return;
@@ -112,8 +119,16 @@ export function QuestionsSection({ jobId, questions, onQuestionsChange }: Questi
                       <p className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3 text-green-500" /> Approved Response
                       </p>
-                      <p className="text-sm text-foreground bg-green-950/20 border border-green-900/30 dark:bg-green-950/30 dark:border-green-900/50 rounded p-3 whitespace-pre-wrap leading-relaxed">
+                      <p
+                        className="text-sm text-foreground bg-green-950/20 border border-green-900/30 dark:bg-green-950/30 dark:border-green-900/50 rounded p-3 whitespace-pre-wrap leading-relaxed cursor-pointer select-none"
+                        title="Click to copy"
+                        onClick={() => handleCopy(q.id, q.response!)}
+                      >
                         <PrivacyBlur>{q.response}</PrivacyBlur>
+                        <span className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground/60">
+                          {copiedId === q.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                          {copiedId === q.id ? "Copied!" : "Copy"}
+                        </span>
                       </p>
                       <Button
                         variant="ghost"
