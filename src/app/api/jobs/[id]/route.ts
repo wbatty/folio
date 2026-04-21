@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { UpdateJobSchema } from "@/lib/schemas";
 
 function mapJob(job: Record<string, unknown>) {
   const companyJoin = job.companies as { name: string } | null;
@@ -86,7 +87,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await req.json();
+  const parsed = UpdateJobSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+  const body = parsed.data;
 
   const { data: job, error } = await supabase
     .from("jobs")

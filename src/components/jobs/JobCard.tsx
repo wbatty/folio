@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "./StatusBadge";
 import { Loader2, ExternalLink } from "lucide-react";
@@ -51,6 +51,20 @@ export function JobCard({ job, onStatusChange, deleted }: JobCardProps) {
 
   return (
     <Card className={`hover:shadow-md transition-shadow${deleted ? " opacity-50" : ""}`}>
+      {/* <CardHeader className="p-4">
+        <PrivacyBlur>
+          <CardTitle className="flex items-center gap-2">
+             {isResearching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/70" />}
+            {job.title ?? "Unknown Position"}
+          </CardTitle>
+          <CardAction asChild>
+            <Link href={`/jobs/${job.id}`} className="text-sm text-muted-foreground hover:underline">
+              {job.company ?? new URL(job.url).hostname}
+            </Link>
+          </CardAction>
+          <StatusBadge status={job.status} />
+        </PrivacyBlur>
+      </CardHeader> */}
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <Link href={`/jobs/${job.id}`} className="flex-1 min-w-0">

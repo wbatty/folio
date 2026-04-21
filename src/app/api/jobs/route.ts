@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { CreateJobSchema } from "@/lib/schemas";
-import { matchCompanyByUrl } from "@/lib/company-matching";
+import { matchCompanyByUrl, matchOrCreateCompanyByName } from "@/lib/company-matching";
 
 export async function GET(req: NextRequest) {
   const showDeleted = req.nextUrl.searchParams.get("showDeleted") === "true";
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { url } = parsed.data;
+  const { url, company, title } = parsed.data;
 
   // Get the currently active resume
   const { data: resume } = await supabase
@@ -75,12 +75,20 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .single();
 
-  // Stage 1: URL-based company matching (before scrape)
-  const companyId = await matchCompanyByUrl(url);
+  // If the user provided a company name, match/create by name; otherwise fall back to URL-based matching
+  const companyId = company?.trim()
+    ? await matchOrCreateCompanyByName(company.trim())
+    : await matchCompanyByUrl(url);
 
   const { data: job, error: jobError } = await supabase
     .from("jobs")
-    .insert({ url, resume_id: resume?.id ?? null, status: "RESEARCHING", company_id: companyId })
+    .insert({
+      url,
+      resume_id: resume?.id ?? null,
+      status: "RESEARCHING",
+      company_id: companyId,
+      ...(title?.trim() ? { title: title.trim() } : {}),
+    })
     .select()
     .single();
 

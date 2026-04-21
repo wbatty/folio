@@ -89,8 +89,6 @@ export async function* generateWithSession(
     options: {
       // resume: sessionId,
       maxTurns: 3,
-      permissionMode: "bypassPermissions",
-      allowDangerouslySkipPermissions: true,
       allowedTools: [],
     },
   })) {

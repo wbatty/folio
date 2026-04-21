@@ -24,6 +24,8 @@ interface Metrics {
   totalAppliedCount: number;
   activeInterviews: number;
   denied: number;
+  jobsAppliedToday: number;
+  totalNeedAction: number;
 }
 
 function countWeekdays(start: Date, end: Date): number {
@@ -99,8 +101,12 @@ export function MetricsSection() {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <span className="text-muted-foreground">Total need action</span>
+              <span className="font-medium text-right">{metrics.totalNeedAction}</span>
               <span className="text-muted-foreground">Active Interviews</span>
               <span className="font-medium text-right">{metrics.activeInterviews}</span>
+              <span className="text-muted-foreground">Jobs applied today</span>
+              <span className="font-medium text-right">{metrics.jobsAppliedToday}</span>
               <span className="text-muted-foreground">Positions applied</span>
               <span className="font-medium text-right">{metrics.totalApplied}</span>
               <span className="text-muted-foreground">Denied</span>

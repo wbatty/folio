@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,30 +10,51 @@ import { Loader2 } from "lucide-react";
 interface AddJobDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (url: string) => Promise<void>;
+  initialUrl?: string;
+  onAdd: (url: string, company: string, title: string) => Promise<void>;
 }
 
-export function AddJobDialog({ open, onOpenChange, onAdd }: AddJobDialogProps) {
-  const [url, setUrl] = useState("");
+const emptyForm = { url: "", company: "", title: "" };
+
+export function AddJobDialog({ open, onOpenChange, initialUrl, onAdd }: AddJobDialogProps) {
+  const [form, setForm] = useState({ ...emptyForm, url: initialUrl ?? "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
+  useEffect(() => {
+    if (open) {
+      setForm({ ...emptyForm, url: initialUrl ?? "" });
+      setError("");
+    }
+  }, [open, initialUrl]);
 
+  function set(field: keyof typeof form) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+      setError("");
+    };
+  }
+
+  function validate(): boolean {
     try {
-      new URL(url);
+      new URL(form.url);
     } catch {
       setError("Please enter a valid URL");
-      return;
+      return false;
     }
+    return true;
+  }
 
+  async function submit(andAnother: boolean) {
+    if (!validate()) return;
     setLoading(true);
     try {
-      await onAdd(url);
-      setUrl("");
-      onOpenChange(false);
+      await onAdd(form.url, form.company, form.title);
+      if (andAnother) {
+        setForm(emptyForm);
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add job");
     } finally {
@@ -41,40 +62,63 @@ export function AddJobDialog({ open, onOpenChange, onAdd }: AddJobDialogProps) {
     }
   }
 
+  const canSubmit = !loading && !!form.url;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Job Application</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="url">Job Posting URL</Label>
-              <Input
-                id="url"
-                type="url"
-                placeholder="https://..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                autoFocus
-              />
-              {error && <p className="text-sm text-red-500">{error}</p>}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              The job description will be automatically scraped and parsed. You can add questions and generate responses once research is complete.
-            </p>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="add-url">Job Posting URL</Label>
+            <Input
+              id="add-url"
+              type="url"
+              placeholder="https://..."
+              value={form.url}
+              onChange={set("url")}
+              autoFocus
+            />
           </div>
-          <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading || !url}>
+          <div className="space-y-2">
+            <Label htmlFor="add-company">Company</Label>
+            <Input
+              id="add-company"
+              type="text"
+              placeholder="Acme Corp"
+              value={form.company}
+              onChange={set("company")}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="add-title">Position</Label>
+            <Input
+              id="add-title"
+              type="text"
+              placeholder="Software Engineer"
+              value={form.title}
+              onChange={set("title")}
+            />
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+        </div>
+        <DialogFooter className="mt-4 flex-row justify-between sm:justify-between">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => submit(true)} disabled={!canSubmit}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Add Job
+              Add Another
             </Button>
-          </DialogFooter>
-        </form>
+            <Button type="button" onClick={() => submit(false)} disabled={!canSubmit}>
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Add
+            </Button>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

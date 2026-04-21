@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 const INTERVIEWING_STATUSES = new Set(["INTERVIEWING", "OFFERED"]);
 
+const ACTION_NEEDED_STATUSES = new Set(["PENDING_APPLICATION", "RESEARCH_ERROR"]);
+
 const APPLIED_STATUSES = new Set([
   "APPLIED",
   "INTERVIEWING",
@@ -33,6 +35,8 @@ export async function GET() {
     return NextResponse.json({ totalApplied: 0, uniqueCompanies: 0, avgTimePerState: {}, totalAppliedCount: 0 });
   }
 
+  const totalNeedAction = jobs.filter((j) => ACTION_NEEDED_STATUSES.has(j.status)).length;
+
   const appliedJobs = jobs.filter((j) => APPLIED_STATUSES.has(j.status));
 
   const totalApplied = appliedJobs.length;
@@ -48,6 +52,17 @@ export async function GET() {
   // Compute avg time per state using status_logs
   const stateDurations: Record<string, number[]> = {};
   const now = Date.now();
+  const jobsAppliedToday = appliedJobs.filter((j) => {
+    const appliedLog = j.status_logs?.find((log) => log.status === "APPLIED");
+    if (!appliedLog) return false;
+    const appliedDate = new Date(appliedLog.created_at);
+    const today = new Date();
+    return (
+      appliedDate.getDate() === today.getDate() &&
+      appliedDate.getMonth() === today.getMonth() &&
+      appliedDate.getFullYear() === today.getFullYear()
+    );
+  }).length;
 
   for (const job of jobs) {
     const logs = [...(job.status_logs ?? [])].sort(
@@ -75,5 +90,5 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ totalApplied, uniqueCompanies, avgTimePerState, totalAppliedCount: totalApplied, activeInterviews, denied});
+  return NextResponse.json({ totalApplied, uniqueCompanies, avgTimePerState, totalAppliedCount: totalApplied, activeInterviews, denied, jobsAppliedToday, totalNeedAction });
 }

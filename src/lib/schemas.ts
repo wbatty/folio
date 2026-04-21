@@ -27,6 +27,8 @@ export type JobExtraction = z.infer<typeof JobExtractionSchema>;
 
 export const CreateJobSchema = z.object({
   url: z.string().url("Must be a valid URL"),
+  company: z.string().optional(),
+  title: z.string().optional(),
 });
 export type CreateJobInput = z.infer<typeof CreateJobSchema>;
 
@@ -92,6 +94,14 @@ export const MergeCompanySchema = z.object({
   targetId: z.string().uuid("Must be a valid company ID"),
 });
 export type MergeCompanyInput = z.infer<typeof MergeCompanySchema>;
+
+export const UpdateJobSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  descriptionFull: z.string().optional(),
+  dateApplied: z.string().datetime().optional().nullable(),
+});
+export type UpdateJobInput = z.infer<typeof UpdateJobSchema>;
 
 // ─── AI: Generate ─────────────────────────────────────────────────────────────
 

@@ -6,10 +6,11 @@ import { MetricsSection } from "@/components/jobs/MetricsSection";
 import { CompaniesSection } from "@/components/companies/CompaniesSection";
 import { JobCard } from "@/components/jobs/JobCard";
 import { CsvImportButton } from "@/components/jobs/CsvImportButton";
+import { AddJobDialog } from "@/components/jobs/AddJobDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Briefcase, Loader2, ChevronRight } from "lucide-react";
+import { Plus, Briefcase, ChevronRight } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
 import { PrivacyToggle } from "@/components/ui/privacy-toggle";
 import { usePrivacy } from "@/lib/privacy-context";
@@ -68,8 +69,7 @@ export default function HomePage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [jobUrl, setJobUrl] = useState("");
-  const [addingJob, setAddingJob] = useState(false);
-  const [addJobError, setAddJobError] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [showDenied, setShowDenied] = useState(false);
   const [showWithdrawn, setShowWithdrawn] = useState(false);
@@ -123,35 +123,23 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [jobs]);
 
-  async function handleAddJob(e: React.FormEvent<HTMLFormElement>) {
+  function handleAddJob(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setAddJobError("");
+    setDialogOpen(true);
+  }
 
-    try {
-      new URL(jobUrl);
-    } catch {
-      setAddJobError("Please enter a valid URL");
-      return;
-    }
-
-    setAddingJob(true);
-    try {
-      const res = await fetch("/api/jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: jobUrl }),
-      });
-      if (!res.ok) throw new Error("Failed to create job");
-      const job: Job = await res.json();
-      setJobs((prev) => [job, ...prev]);
-      setJobUrl("");
-      // Fire-and-forget scrape
-      fetch(`/api/jobs/${job.id}/scrape`, { method: "POST" }).catch(console.error);
-    } catch (err) {
-      setAddJobError(err instanceof Error ? err.message : "Failed to add job");
-    } finally {
-      setAddingJob(false);
-    }
+  async function handleDialogAdd(url: string, company: string, title: string) {
+    const res = await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, company: company || undefined, title: title || undefined }),
+    });
+    if (!res.ok) throw new Error("Failed to create job");
+    const job: Job = await res.json();
+    setJobs((prev) => [job, ...prev]);
+    setJobUrl("");
+    // Fire-and-forget scrape
+    fetch(`/api/jobs/${job.id}/scrape`, { method: "POST" }).catch(console.error);
   }
 
   const handleStatusChange = useCallback(async (jobId: string, status: JobStatus) => {
@@ -178,28 +166,30 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Briefcase className="h-5 w-5 text-foreground" />
-            <h1 className="text-lg font-semibold text-foreground">DuckReports</h1>
+            <h1 className="text-lg font-semibold text-foreground">Folio</h1>
           </div>
           <div className="flex items-center gap-2">
           <PrivacyToggle />
           <CsvImportButton onImportComplete={refreshJobs} />
           <form onSubmit={handleAddJob} className="flex items-center gap-2">
-            <div className="flex flex-col items-end">
-              <Input
-                type="url"
-                placeholder="Paste job posting URL..."
-                value={jobUrl}
-                onChange={(e) => { setJobUrl(e.target.value); setAddJobError(""); }}
-                className="w-72"
-                disabled={addingJob}
-              />
-              {addJobError && <p className="text-xs text-red-500 mt-1">{addJobError}</p>}
-            </div>
-            <Button type="submit" disabled={addingJob || !jobUrl}>
-              {addingJob ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            <Input
+              type="url"
+              placeholder="Paste job posting URL..."
+              value={jobUrl}
+              onChange={(e) => setJobUrl(e.target.value)}
+              className="w-72"
+            />
+            <Button type="submit" disabled={!jobUrl}>
+              <Plus className="h-4 w-4" />
               Add Job
             </Button>
           </form>
+          <AddJobDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            initialUrl={jobUrl}
+            onAdd={handleDialogAdd}
+          />
           </div>
         </div>
       </header>

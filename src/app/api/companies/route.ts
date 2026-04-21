@@ -3,26 +3,34 @@ import { supabase } from "@/lib/supabase";
 import { CreateCompanySchema } from "@/lib/schemas";
 
 export async function GET() {
-  const [{ data, error }, { data: appliedRows }] = await Promise.all([
+  const [{ data, error }, { data: jobRows }] = await Promise.all([
     supabase.from("companies").select("*"),
     supabase
       .from("jobs")
-      .select("company_id, date_applied")
+      .select("company_id, date_applied, status")
       .is("deleted_at", null)
-      .not("company_id", "is", null)
-      .not("date_applied", "is", null)
-      .order("date_applied", { ascending: false }),
+      .not("company_id", "is", null),
   ]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Build map of company_id -> most recent date_applied
+  // Build per-company maps from job rows
   const lastAppliedMap: Record<string, string> = {};
-  for (const row of appliedRows ?? []) {
-    if (row.company_id && !lastAppliedMap[row.company_id]) {
-      lastAppliedMap[row.company_id] = row.date_applied!;
+  const appliedCountMap: Record<string, number> = {};
+  const deniedCountMap: Record<string, number> = {};
+
+  for (const row of jobRows ?? []) {
+    const cid = row.company_id!;
+    if (row.date_applied) {
+      appliedCountMap[cid] = (appliedCountMap[cid] ?? 0) + 1;
+      if (!lastAppliedMap[cid] || row.date_applied > lastAppliedMap[cid]) {
+        lastAppliedMap[cid] = row.date_applied;
+      }
+    }
+    if (row.status === "DENIED") {
+      deniedCountMap[cid] = (deniedCountMap[cid] ?? 0) + 1;
     }
   }
 
@@ -43,6 +51,8 @@ export async function GET() {
     jobListingIndex: c.job_listing_index,
     lastCheckedAt: c.last_checked_at,
     lastAppliedAt: lastAppliedMap[c.id] ?? null,
+    appliedCount: appliedCountMap[c.id] ?? 0,
+    deniedCount: deniedCountMap[c.id] ?? 0,
     createdAt: c.created_at,
     updatedAt: c.updated_at,
   }));

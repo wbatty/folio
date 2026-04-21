@@ -4,7 +4,7 @@ import { PrivacyProvider } from "@/lib/privacy-context";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DuckReports — Job Application Assistant",
+  title: "Folio — Job Application Tracker",
   description: "Track and manage your job applications with AI-assisted responses",
 };
 

@@ -1,25 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { spawn } from "child_process";
 import { chromium } from "playwright";
+import { clean } from "decant";
 import { supabase } from "@/lib/supabase";
 import { parseJob } from "@/lib/claude";
 import { matchOrCreateCompanyByName } from "@/lib/company-matching";
 
-async function runDecant(html: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("decant", ["clean"], { env: { ...process.env, PATH: process.env.PATH + ":/usr/local/bin:/home/root/.local/bin" } });
-    let out = "";
-    let err = "";
-    proc.stdout.on("data", (d) => (out += d.toString()));
-    proc.stderr.on("data", (d) => (err += d.toString()));
-    proc.on("close", (code) => {
-      if (code === 0) resolve(out);
-      else reject(new Error(`decant exited ${code}: ${err}`));
-    });
-    proc.on("error", reject);
-    proc.stdin.write(html);
-    proc.stdin.end();
-  });
+/**
+ * Reject URLs that resolve to loopback or RFC-1918 private addresses to
+ * prevent server-side request forgery (SSRF) via the headless-browser scraper.
+ */
+function assertPublicUrl(urlString: string): void {
+  let url: URL;
+  try {
+    url = new URL(urlString);
+  } catch {
+    throw new Error("Invalid URL");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("Only http/https URLs are allowed");
+  }
+  const host = url.hostname.toLowerCase();
+  const privatePatterns = [
+    /^localhost$/,
+    /^127\./,
+    /^0\.0\.0\.0$/,
+    /^::1$/,
+    /^10\./,
+    /^172\.(1[6-9]|2\d|3[01])\./,
+    /^192\.168\./,
+    /^169\.254\./, // link-local
+    /^fd[0-9a-f]{2}:/i, // IPv6 ULA
+  ];
+  if (privatePatterns.some((re) => re.test(host))) {
+    throw new Error("Scraping private/internal addresses is not allowed");
+  }
 }
 
 async function resolveCompanyId(jobId: string, extractedName: string | null | undefined): Promise<string | null> {
@@ -40,7 +54,7 @@ async function extractAndUpdate(id: string, html: string) {
   // 1. Clean HTML to markdown
   let markdown = html;
   try {
-    markdown = await runDecant(html);
+    markdown = (await clean(html)).markdown;
   } catch {
     // decant not available, strip tags and fall back to plain text
     markdown = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 20000);
@@ -155,10 +169,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (manualHtml) {
         html = manualHtml;
       } else {
+        assertPublicUrl(job.url);
         const browser = await chromium.launch({ headless: true });
         try {
           const page = await browser.newPage();
-          await page.goto(job.url, { waitUntil: "networkidle", timeout: 30000 });
+          await page.goto(job.url, { waitUntil: "domcontentloaded", timeout: 60000 });
+          // Give JS-rendered content a moment to settle without waiting for all network activity
+          await page.waitForTimeout(2000);
           html = await page.content();
         } finally {
           await browser.close();

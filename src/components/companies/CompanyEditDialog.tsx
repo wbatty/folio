@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,15 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
 interface Company {
@@ -31,13 +23,21 @@ interface Company {
 }
 
 interface CompanyEditDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   company: Company;
+  possibleDuplicates: { id: string; name: string }[];
   otherCompanies: { id: string; name: string }[];
   onSaved: () => void;
 }
 
-export function CompanyEditDialog({ company, otherCompanies, onSaved }: CompanyEditDialogProps) {
-  const [open, setOpen] = useState(false);
+export function CompanyEditDialog({
+  open,
+  onOpenChange,
+  company,
+  possibleDuplicates,
+  onSaved,
+}: CompanyEditDialogProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(company.name);
@@ -46,8 +46,7 @@ export function CompanyEditDialog({ company, otherCompanies, onSaved }: CompanyE
   const [lastCheckedAt, setLastCheckedAt] = useState(
     company.lastCheckedAt ? company.lastCheckedAt.slice(0, 10) : ""
   );
-  const [mergeTargetId, setMergeTargetId] = useState<string>("");
-  const [merging, setMerging] = useState(false);
+  const [mergingId, setMergingId] = useState<string | null>(null);
 
   function handleOpenChange(value: boolean) {
     if (value) {
@@ -55,10 +54,10 @@ export function CompanyEditDialog({ company, otherCompanies, onSaved }: CompanyE
       setSite(company.site ?? "");
       setJobListingIndex(company.jobListingIndex ?? "");
       setLastCheckedAt(company.lastCheckedAt ? company.lastCheckedAt.slice(0, 10) : "");
-      setMergeTargetId("");
+      setMergingId(null);
       setError(null);
     }
-    setOpen(value);
+    onOpenChange(value);
   }
 
   async function handleSave() {
@@ -83,7 +82,7 @@ export function CompanyEditDialog({ company, otherCompanies, onSaved }: CompanyE
         throw new Error(data.error ?? "Failed to save");
       }
       onSaved();
-      setOpen(false);
+      onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -91,36 +90,33 @@ export function CompanyEditDialog({ company, otherCompanies, onSaved }: CompanyE
     }
   }
 
-  async function handleMerge() {
-    if (!mergeTargetId) return;
-    setMerging(true);
+  // sourceId gets deleted; its jobs move to targetId
+  async function handleMerge(sourceId: string, targetId: string) {
+    setMergingId(sourceId);
     setError(null);
     try {
-      const res = await fetch(`/api/companies/${company.id}/merge`, {
+      const res = await fetch(`/api/companies/${sourceId}/merge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetId: mergeTargetId }),
+        body: JSON.stringify({ targetId }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? "Failed to merge");
       }
       onSaved();
-      setOpen(false);
+      onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to merge");
     } finally {
-      setMerging(false);
+      setMergingId(null);
     }
   }
 
+  const isBusy = saving || mergingId !== null;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <button className="text-sm font-medium text-foreground hover:underline truncate text-left max-w-xs">
-          {company.name}
-        </button>
-      </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit company</DialogTitle>
@@ -163,35 +159,50 @@ export function CompanyEditDialog({ company, otherCompanies, onSaved }: CompanyE
             />
           </div>
 
-          {otherCompanies.length > 0 && (
+          {possibleDuplicates.length > 0 && (
             <>
               <Separator />
-              <div className="space-y-1.5">
-                <Label htmlFor="merge-target">Merge into another company</Label>
-                <p className="text-xs text-muted-foreground">
-                  All jobs from <span className="font-medium">{company.name}</span> will be moved to the selected company, then this entry will be deleted.
-                </p>
-                <div className="flex gap-2">
-                  <Select value={mergeTargetId} onValueChange={setMergeTargetId}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select company…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {otherCompanies.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="destructive"
-                    onClick={handleMerge}
-                    disabled={!mergeTargetId || merging}
-                  >
-                    {merging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                    Merge
-                  </Button>
+              <div className="space-y-2">
+                <Label>Possible duplicates</Label>
+                <div className="space-y-1.5">
+                  {possibleDuplicates.map((dupe) => (
+                    <div
+                      key={dupe.id}
+                      className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
+                    >
+                      <span className="text-sm truncate">{dupe.name}</span>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isBusy}
+                          title={`Move ${dupe.name}'s jobs here and delete it`}
+                          onClick={() => handleMerge(dupe.id, company.id)}
+                        >
+                          {mergingId === dupe.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <ArrowLeft className="h-3 w-3" />
+                          )}
+                          Absorb
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isBusy}
+                          title={`Move this company's jobs to ${dupe.name} and delete this`}
+                          onClick={() => handleMerge(company.id, dupe.id)}
+                        >
+                          {mergingId === company.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <ArrowRight className="h-3 w-3" />
+                          )}
+                          Move to
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </>
@@ -200,10 +211,10 @@ export function CompanyEditDialog({ company, otherCompanies, onSaved }: CompanyE
           {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={saving || merging}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving || merging || !name.trim()}>
+          <Button onClick={handleSave} disabled={isBusy || !name.trim()}>
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             Save
           </Button>

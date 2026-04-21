@@ -4,13 +4,24 @@ import { anthropic, buildSystemPrompt, generateWithSession } from "@/lib/claude"
 import { GenerateRequestSchema } from "@/lib/schemas";
 import { enqueueForJob } from "@/lib/job-queue";
 
-function buildResumePrompt(messages: Array<{ role: string; content: string }>): string {
-  if (messages.length === 1) return messages[0].content;
+function buildResumePrompt(job: Record<string, unknown>, messages: Array<{ role: string; content: string }>): string {
   const history = messages
     .slice(0, -1)
     .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
     .join("\n\n");
-  return `Prior conversation:\n${history}\n\nNew request: ${messages[messages.length - 1].content}`;
+  
+  const question = (messages.length === 1) ? messages[0].content : `Prior conversation:\n${history}\n\nNew request: ${messages[messages.length - 1].content}`;
+
+  return ` You are a helpful assistant that provides job application advice based on a user's resume and a job description. Use the following information to answer the user's question. Provide your answer in a concise and helpful manner without preamble and without following up so the user can save and paste into a text editor, drawing on specific details from the resume and job description.
+Job details:
+Company: ${job.company as string | null}
+Title: ${job.title as string | null}
+Description: ${job.description_full as string | null}
+
+Resume:
+${job.resume ? (job.resume as Record<string, unknown>).content : "No resume found"}
+
+${question}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -39,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   // Session-resume path: use the Agent SDK to continue the research session
   if (sessionId) {
-    const prompt = buildResumePrompt(messages);
+    const prompt = buildResumePrompt(job, messages);
     const encoder = new TextEncoder();
 
     let streamController!: ReadableStreamDefaultController<Uint8Array>;
