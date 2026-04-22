@@ -45,6 +45,7 @@ const STATUS_PRIORITY: Record<JobStatus, number> = {
   APPLIED: 1,
   DENIED: 0,
   WITHDRAWN: 0,
+  EXPIRED: 0,
 };
 
 function sortJobs(list: Job[]): Job[] {
@@ -73,6 +74,7 @@ export default function HomePage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [showDenied, setShowDenied] = useState(false);
   const [showWithdrawn, setShowWithdrawn] = useState(false);
+  const [showExpired, setShowExpired] = useState(false);
   const [companySearch, setCompanySearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
 
@@ -89,6 +91,7 @@ export default function HomePage() {
     if (showDeleted) params.set("showDeleted", "true");
     if (showDenied) params.set("showDenied", "true");
     if (showWithdrawn) params.set("showWithdrawn", "true");
+    if (showExpired) params.set("showExpired", "true");
     const url = `/api/jobs${params.size ? `?${params}` : ""}`;
     fetch(url)
       .then((r) => r.json())
@@ -99,7 +102,7 @@ export default function HomePage() {
   useEffect(() => {
     refreshJobs();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showDeleted, showDenied, showWithdrawn]);
+  }, [showDeleted, showDenied, showWithdrawn, showExpired]);
 
   // Poll researching jobs every 3s
   useEffect(() => {
@@ -221,9 +224,9 @@ export default function HomePage() {
                   className="w-40 h-7 text-sm"
                 />
                 <div className="flex items-center gap-4 shrink-0">
-                  {(["denied", "withdrawn", "deleted"] as const).map((key) => {
-                    const checked = key === "denied" ? showDenied : key === "withdrawn" ? showWithdrawn : showDeleted;
-                    const setter = key === "denied" ? setShowDenied : key === "withdrawn" ? setShowWithdrawn : setShowDeleted;
+                  {(["denied", "withdrawn", "expired", "deleted"] as const).map((key) => {
+                    const checked = key === "denied" ? showDenied : key === "withdrawn" ? showWithdrawn : key === "expired" ? showExpired : showDeleted;
+                    const setter = key === "denied" ? setShowDenied : key === "withdrawn" ? setShowWithdrawn : key === "expired" ? setShowExpired : setShowDeleted;
                     return (
                       <label key={key} className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
                         <input

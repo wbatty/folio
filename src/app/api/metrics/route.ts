@@ -10,6 +10,7 @@ const APPLIED_STATUSES = new Set([
   "OFFERED",
   "DENIED",
   "WITHDRAWN",
+  "EXPIRED",
 ]);
 
 const ALL_STATUSES = [
@@ -21,6 +22,7 @@ const ALL_STATUSES = [
   "OFFERED",
   "DENIED",
   "WITHDRAWN",
+  "EXPIRED",
 ] as const;
 
 type JobStatus = (typeof ALL_STATUSES)[number];

@@ -11,6 +11,7 @@ const STATUS_CONFIG: Record<JobStatus, { label: string; className: string }> = {
   OFFERED: { label: "Offered", className: "bg-green-100 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-900" },
   DENIED: { label: "Denied", className: "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-900" },
   WITHDRAWN: { label: "Withdrawn", className: "bg-muted text-muted-foreground border-border" },
+  EXPIRED: { label: "Expired", className: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-900" },
 };
 
 export function StatusBadge({ status }: { status: JobStatus }) {

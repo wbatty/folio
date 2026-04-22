@@ -61,7 +61,8 @@ function parseCSV(text: string): string[][] {
 const STATUS_MAP: Record<string, JobStatus> = {
   applied: "APPLIED",
   denied: "DENIED",
-  "expired post": "WITHDRAWN",
+  expired: "EXPIRED",
+  "expired post": "EXPIRED",
   withdrawn: "WITHDRAWN",
   interviewing: "INTERVIEWING",
   "waiting on interview feedback": "INTERVIEWING",

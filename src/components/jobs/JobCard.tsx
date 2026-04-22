@@ -17,6 +17,7 @@ const ALL_STATUSES: { value: JobStatus; label: string }[] = [
   { value: "OFFERED", label: "Offered" },
   { value: "DENIED", label: "Denied" },
   { value: "WITHDRAWN", label: "Withdrawn" },
+  { value: "EXPIRED", label: "Expired" },
 ];
 
 interface Job {
