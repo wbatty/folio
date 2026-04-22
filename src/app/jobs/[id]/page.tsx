@@ -52,6 +52,13 @@ interface Note {
   createdAt: string;
 }
 
+interface ResumeOption {
+  id: string;
+  filename: string;
+  createdAt: string;
+  isDefault: boolean;
+}
+
 interface Job {
   id: string;
   url: string;
@@ -78,10 +85,10 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  // const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  // const [deleting, setDeleting] = useState(false);
   const [manualHtml, setManualHtml] = useState("");
   const [retrying, setRetrying] = useState(false);
+  const [resumeOptions, setResumeOptions] = useState<ResumeOption[]>([]);
+  const [updatingResume, setUpdatingResume] = useState(false);
 
   const fetchJob = useCallback(() => {
     setLoading(true);
@@ -94,9 +101,17 @@ export default function JobDetailPage() {
       .catch(() => router.push("/"))
       .finally(() => setLoading(false));
   }, [id, router]);
+
   useEffect(() => {
     fetchJob();
   }, [fetchJob]);
+
+  useEffect(() => {
+    fetch("/api/resumes")
+      .then((r) => r.json())
+      .then((data: ResumeOption[]) => setResumeOptions(data))
+      .catch(console.error);
+  }, []);
 
   async function handleStatusChange(status: string) {
     if (!job) return;
@@ -126,6 +141,23 @@ export default function JobDetailPage() {
   //     setDeleting(false);
   //   }
   // }
+
+  async function handleResumeChange(resumeId: string) {
+    if (!job) return;
+    setUpdatingResume(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeId }),
+      });
+      if (!res.ok) throw new Error("Failed to update resume");
+      const updated = await res.json();
+      setJob((prev) => prev ? { ...prev, resume: updated.resume } : prev);
+    } finally {
+      setUpdatingResume(false);
+    }
+  }
 
   async function handleRescrape(html?: string) {
     if (!job) return;
@@ -223,10 +255,27 @@ export default function JobDetailPage() {
                     Applied {new Date(job.dateApplied).toLocaleDateString()}
                   </span>
                 )}
-                {job.resume && (
-                  <span className="text-xs text-muted-foreground/70">
-                    Resume: {job.resume.filename}
-                  </span>
+                {resumeOptions.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    {updatingResume && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                    <Select
+                      value={job.resume?.id ?? "none"}
+                      onValueChange={(v) => handleResumeChange(v)}
+                      disabled={updatingResume}
+                    >
+                      <SelectTrigger className="h-6 text-xs w-44 text-muted-foreground border-0 bg-transparent px-1 shadow-none">
+                        <SelectValue placeholder="No resume" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {resumeOptions.map((r) => (
+                          <SelectItem key={r.id} value={r.id} className="text-xs">
+                            {r.filename}
+                            {r.isDefault && <span className="ml-1 text-muted-foreground">(default)</span>}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
                 {job.sessionId && (
                   <div className="flex items-center gap-1.5">

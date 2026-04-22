@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ResumeSection } from "@/components/resume/ResumeSection";
+import { ResumeSection, type ResumeListItem } from "@/components/resume/ResumeSection";
 import { MetricsSection } from "@/components/jobs/MetricsSection";
 import { CompaniesSection } from "@/components/companies/CompaniesSection";
 import { JobCard } from "@/components/jobs/JobCard";
@@ -14,14 +14,6 @@ import { Plus, Briefcase, ChevronRight } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
 import { PrivacyToggle } from "@/components/ui/privacy-toggle";
 import { usePrivacy } from "@/lib/privacy-context";
-
-interface Resume {
-  id: string;
-  filename: string;
-  content: string;
-  createdAt: string;
-  hasPdf: boolean;
-}
 
 interface Job {
   id: string;
@@ -65,7 +57,7 @@ function isArchived(job: Job): boolean {
 
 export default function HomePage() {
   const { privacyMode } = usePrivacy();
-  const [resume, setResume] = useState<Resume | null>(null);
+  const [resumes, setResumes] = useState<ResumeListItem[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [jobUrl, setJobUrl] = useState("");
@@ -77,9 +69,9 @@ export default function HomePage() {
   const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
-    fetch("/api/resume")
+    fetch("/api/resumes")
       .then((r) => r.json())
-      .then(setResume)
+      .then(setResumes)
       .catch(console.error);
   }, []);
 
@@ -198,7 +190,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
           <aside className="space-y-6">
             {!privacyMode && <MetricsSection />}
-            <ResumeSection resume={resume} onUpload={setResume} />
+            <ResumeSection resumes={resumes} onResumesChange={setResumes} />
           </aside>
 
           <Tabs defaultValue="applications">

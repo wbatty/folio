@@ -6,8 +6,8 @@ import { supabase } from "@/lib/supabase";
 export async function GET() {
   const { data: resume } = await supabase
     .from("resumes")
-    .select("id, filename, content, created_at, pdf_path")
-    .order("created_at", { ascending: false })
+    .select("id, filename, content, created_at, pdf_path, is_default")
+    .eq("is_default", true)
     .limit(1)
     .single();
 
@@ -19,6 +19,7 @@ export async function GET() {
     content: resume.content,
     createdAt: resume.created_at,
     hasPdf: resume.pdf_path !== null,
+    isDefault: resume.is_default,
   });
 }
 
@@ -56,9 +57,12 @@ export async function POST(req: NextRequest) {
     pdfPath = storagePath;
   }
 
+  // Clear existing default before inserting new resume
+  await supabase.from("resumes").update({ is_default: false }).eq("is_default", true);
+
   const { data: resume, error } = await supabase
     .from("resumes")
-    .insert({ filename: file.name, content, pdf_path: pdfPath })
+    .insert({ filename: file.name, content, pdf_path: pdfPath, is_default: true })
     .select()
     .single();
 
@@ -76,6 +80,7 @@ export async function POST(req: NextRequest) {
       content: resume.content,
       createdAt: resume.created_at,
       hasPdf: resume.pdf_path !== null,
+      isDefault: resume.is_default,
     },
     { status: 201 }
   );

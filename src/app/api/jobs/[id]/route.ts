@@ -100,16 +100,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       description: body.description,
       description_full: body.descriptionFull,
       date_applied: body.dateApplied ? new Date(body.dateApplied).toISOString() : undefined,
+      ...(body.resumeId !== undefined ? { resume_id: body.resumeId } : {}),
     })
     .eq("id", id)
-    .select("*, companies(name)")
+    .select("*, companies(name), resume:resumes(id, filename)")
     .single();
 
   if (error || !job) {
     return NextResponse.json({ error: error?.message ?? "Update failed" }, { status: 500 });
   }
 
-  const companyJoin = (job as unknown as Record<string, unknown>).companies as { name: string } | null;
+  const jobData = job as unknown as Record<string, unknown>;
+  const companyJoin = jobData.companies as { name: string } | null;
+  const resumeJoin = jobData.resume as { id: string; filename: string } | null;
 
   return NextResponse.json({
     id: job.id,
@@ -121,6 +124,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     status: job.status,
     dateApplied: job.date_applied,
     resumeId: job.resume_id,
+    resume: resumeJoin ?? null,
     createdAt: job.created_at,
     updatedAt: job.updated_at,
   });
