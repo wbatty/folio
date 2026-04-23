@@ -128,10 +128,13 @@ function csvToRows(text: string): ImportJobRow[] {
 
 interface Props {
   onImportComplete: () => void;
+  /** When provided, no built-in trigger button is rendered — call this ref's .click() externally. */
+  triggerRef?: React.RefObject<HTMLInputElement | null>;
 }
 
-export function CsvImportButton({ onImportComplete }: Props) {
-  const fileRef = useRef<HTMLInputElement>(null);
+export function CsvImportButton({ onImportComplete, triggerRef }: Props) {
+  const internalRef = useRef<HTMLInputElement>(null);
+  const fileRef = triggerRef ?? internalRef;
   const [rows, setRows] = useState<ImportJobRow[]>([]);
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -194,10 +197,12 @@ export function CsvImportButton({ onImportComplete }: Props) {
         className="hidden"
         onChange={handleFileChange}
       />
-      <Button variant="outline" type="button" onClick={() => fileRef.current?.click()}>
-        <Upload className="h-4 w-4" />
-        Import CSV
-      </Button>
+      {!triggerRef && (
+        <Button variant="outline" type="button" onClick={() => fileRef.current?.click()}>
+          <Upload className="h-4 w-4" />
+          Import CSV
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
         <DialogContent className="max-w-2xl">

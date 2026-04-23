@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { zodField, UrlField } from "@/lib/schemas";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CompanyCombobox } from "@/components/ui/company-combobox";
 import { Loader2 } from "lucide-react";
 
 interface AddJobDialogProps {
@@ -14,55 +17,38 @@ interface AddJobDialogProps {
   onAdd: (url: string, company: string, title: string) => Promise<void>;
 }
 
-const emptyForm = { url: "", company: "", title: "" };
-
 export function AddJobDialog({ open, onOpenChange, initialUrl, onAdd }: AddJobDialogProps) {
-  const [form, setForm] = useState({ ...emptyForm, url: initialUrl ?? "" });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [serverError, setServerError] = useState("");
+  const addAnotherRef = useRef(false);
 
-  useEffect(() => {
-    if (open) {
-      setForm({ ...emptyForm, url: initialUrl ?? "" });
-      setError("");
-    }
-  }, [open, initialUrl]);
-
-  function set(field: keyof typeof form) {
-    return (e: React.ChangeEvent<HTMLInputElement>) => {
-      setForm((prev) => ({ ...prev, [field]: e.target.value }));
-      setError("");
-    };
-  }
-
-  function validate(): boolean {
-    try {
-      new URL(form.url);
-    } catch {
-      setError("Please enter a valid URL");
-      return false;
-    }
-    return true;
-  }
-
-  async function submit(andAnother: boolean) {
-    if (!validate()) return;
-    setLoading(true);
-    try {
-      await onAdd(form.url, form.company, form.title);
-      if (andAnother) {
-        setForm(emptyForm);
+  const form = useForm({
+    defaultValues: { url: initialUrl ?? "", company: "", title: "" },
+    onSubmit: async ({ value }) => {
+      setServerError("");
+      await onAdd(value.url, value.company ?? "", value.title ?? "");
+      if (addAnotherRef.current) {
+        form.reset({ url: "", company: "", title: "" });
       } else {
         onOpenChange(false);
       }
+    },
+  });
+
+  useEffect(() => {
+    if (open) {
+      form.reset({ url: initialUrl ?? "", company: "", title: "" });
+      setServerError("");
+    }
+  }, [open, initialUrl]);
+
+  async function submit(andAnother: boolean) {
+    addAnotherRef.current = andAnother;
+    try {
+      await form.handleSubmit();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add job");
-    } finally {
-      setLoading(false);
+      setServerError(err instanceof Error ? err.message : "Failed to add job");
     }
   }
-
-  const canSubmit = !loading && !!form.url;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -71,54 +57,76 @@ export function AddJobDialog({ open, onOpenChange, initialUrl, onAdd }: AddJobDi
           <DialogTitle>Add Job Application</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="add-url">Job Posting URL</Label>
-            <Input
-              id="add-url"
-              type="url"
-              placeholder="https://..."
-              value={form.url}
-              onChange={set("url")}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="add-company">Company</Label>
-            <Input
-              id="add-company"
-              type="text"
-              placeholder="Acme Corp"
-              value={form.company}
-              onChange={set("company")}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="add-title">Position</Label>
-            <Input
-              id="add-title"
-              type="text"
-              placeholder="Software Engineer"
-              value={form.title}
-              onChange={set("title")}
-            />
-          </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          <form.Field name="url" validators={zodField(UrlField)}>
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="add-url">Job Posting URL</Label>
+                <Input
+                  id="add-url"
+                  type="url"
+                  placeholder="https://..."
+                  value={field.state.value}
+                  onChange={(e) => { field.handleChange(e.target.value); setServerError(""); }}
+                  onBlur={field.handleBlur}
+                  autoFocus
+                />
+                {field.state.meta.isTouched && field.state.meta.errors[0] && (
+                  <p className="text-sm text-red-500">{field.state.meta.errors[0]}</p>
+                )}
+              </div>
+            )}
+          </form.Field>
+
+          <form.Field name="company">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="add-company">Company</Label>
+                <CompanyCombobox
+                  id="add-company"
+                  value={field.state.value}
+                  onChange={(name) => field.handleChange(name)}
+                />
+              </div>
+            )}
+          </form.Field>
+
+          <form.Field name="title">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="add-title">Position</Label>
+                <Input
+                  id="add-title"
+                  type="text"
+                  placeholder="Software Engineer"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+              </div>
+            )}
+          </form.Field>
+
+          {serverError && <p className="text-sm text-red-500">{serverError}</p>}
         </div>
-        <DialogFooter className="mt-4 flex-row justify-between sm:justify-between">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
-          </Button>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => submit(true)} disabled={!canSubmit}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Add Another
-            </Button>
-            <Button type="button" onClick={() => submit(false)} disabled={!canSubmit}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Add
-            </Button>
-          </div>
-        </DialogFooter>
+
+        <form.Subscribe selector={(s) => [s.isSubmitting, s.values.url] as const}>
+          {([isSubmitting, url]) => (
+            <DialogFooter className="mt-4 flex-row justify-between sm:justify-between">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => submit(true)} disabled={isSubmitting || !url}>
+                  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Add Another
+                </Button>
+                <Button type="button" onClick={() => submit(false)} disabled={isSubmitting || !url}>
+                  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Add
+                </Button>
+              </div>
+            </DialogFooter>
+          )}
+        </form.Subscribe>
       </DialogContent>
     </Dialog>
   );
