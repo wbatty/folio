@@ -10,7 +10,8 @@ import { AddJobDialog } from "@/components/jobs/AddJobDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Briefcase, ChevronRight, Inbox, Loader2, MoreHorizontal, Upload, Eye, EyeOff, X, SlidersHorizontal, Check } from "lucide-react";
+import { Plus, Briefcase, ChevronRight, Inbox, Loader2, MoreHorizontal, Upload, Eye, EyeOff, X, SlidersHorizontal, Check, BarChart2 } from "lucide-react";
+import Link from "next/link";
 import type { JobStatus } from "@/lib/schemas";
 import { usePrivacy } from "@/lib/privacy-context";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -182,9 +183,15 @@ const { privacyMode, togglePrivacy } = usePrivacy();
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b border-border px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Briefcase className="h-5 w-5 text-foreground" />
-            <h1 className="text-lg font-semibold text-foreground">Folio</h1>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-foreground" />
+              <h1 className="text-lg font-semibold text-foreground">Folio</h1>
+            </div>
+            <Link href="/reports" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <BarChart2 className="h-4 w-4" />
+              Reports
+            </Link>
           </div>
           <div className="flex items-center gap-2">
           
