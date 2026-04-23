@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { zodField, RequiredContentField } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, StickyNote } from "lucide-react";
@@ -19,42 +20,52 @@ interface NotesSectionProps {
 }
 
 export function NotesSection({ jobId, notes, onNoteAdded }: NotesSectionProps) {
-  const [content, setContent] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function handleSave() {
-    if (!content.trim()) return;
-    setSaving(true);
-    try {
+  const form = useForm({
+    defaultValues: { content: "" },
+    onSubmit: async ({ value }) => {
       const res = await fetch(`/api/jobs/${jobId}/notes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: value.content }),
       });
       if (!res.ok) throw new Error("Failed to save note");
       const note = await res.json();
       onNoteAdded(note);
-      setContent("");
-    } finally {
-      setSaving(false);
-    }
-  }
+      form.reset();
+    },
+  });
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Textarea
-          placeholder="Add a note..."
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={3}
-        />
-        <div className="flex justify-end">
-          <Button size="sm" onClick={handleSave} disabled={saving || !content.trim()}>
-            {saving && <Loader2 className="h-3 w-3 animate-spin" />}
-            Save Note
-          </Button>
-        </div>
+        <form.Field
+          name="content"
+          validators={zodField(RequiredContentField)}
+        >
+          {(field) => (
+            <Textarea
+              placeholder="Add a note..."
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              rows={3}
+            />
+          )}
+        </form.Field>
+
+        <form.Subscribe selector={(s) => [s.isSubmitting, s.values.content] as const}>
+          {([isSubmitting, content]) => (
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                onClick={() => form.handleSubmit()}
+                disabled={isSubmitting || !content.trim()}
+              >
+                {isSubmitting && <Loader2 className="h-3 w-3 animate-spin" />}
+                Save Note
+              </Button>
+            </div>
+          )}
+        </form.Subscribe>
       </div>
 
       {notes.length === 0 ? (
