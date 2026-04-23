@@ -204,7 +204,8 @@ export default function JobDetailPage() {
           </Link>
           <div className="flex-1 min-w-0">
             <h1 className="font-semibold text-foreground truncate">
-              {job.title ?? "Unknown Position"}
+              <span style={{marginRight:'8px'}}>{job.title ?? "Unknown Position"}</span>
+                <StatusBadge status={job.status} />
             </h1>
             {job.company && (
               <p className="text-sm text-muted-foreground flex items-center gap-1">
@@ -227,15 +228,6 @@ export default function JobDetailPage() {
           <PrivacyToggle />
           <EditJobDialog job={job} onSave={(updated) => setJob((prev) => prev ? { ...prev, ...updated } : prev)} />
           <DeleteJob job={job} onDelete={() => router.push("/")} />
-          {/* <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={() => setShowDeleteConfirm(true)}
-            title="Delete job"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button> */}
         </div>
       </header>
 
@@ -249,7 +241,6 @@ export default function JobDetailPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
-                <StatusBadge status={job.status} />
                 {job.dateApplied && (
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
@@ -278,7 +269,8 @@ export default function JobDetailPage() {
                     </Select>
                   </div>
                 )}
-                {job.sessionId && (
+                    {/* TODO: resolve session ID display when we resolve sessions */}
+                {/* {job.sessionId && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-muted-foreground/70">Session:</span>
                     <code
@@ -297,7 +289,7 @@ export default function JobDetailPage() {
                       <Copy className="h-3 w-3" />
                     </Button>
                   </div>
-                )}
+                )} */}
               </div>
               <div className="flex items-center gap-2">
                 {updatingStatus && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
