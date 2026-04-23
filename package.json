@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "consumer": "tsx --env-file=.env.local scripts/queue-consumer.ts",
     "setup-webhook": "tsx --env-file=.env.local scripts/setup-telegram-webhook.ts"
   },
@@ -56,6 +58,7 @@
     "pg": "^8.20.0",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.19.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.5"
   }
 }
