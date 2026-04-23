@@ -29,6 +29,7 @@ export const JobStatusEnum = z.enum([
   "OFFERED",
   "DENIED",
   "WITHDRAWN",
+  "EXPIRED",
 ]);
 export type JobStatus = z.infer<typeof JobStatusEnum>;
 

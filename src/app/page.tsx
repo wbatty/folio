@@ -10,7 +10,7 @@ import { AddJobDialog } from "@/components/jobs/AddJobDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Briefcase, ChevronRight, Inbox, Loader2, MoreHorizontal, Upload, Eye, EyeOff, X } from "lucide-react";
+import { Plus, Briefcase, ChevronRight, Inbox, Loader2, MoreHorizontal, Upload, Eye, EyeOff, X, SlidersHorizontal, Check } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
 import { usePrivacy } from "@/lib/privacy-context";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -46,6 +46,7 @@ const STATUS_PRIORITY: Record<JobStatus, number> = {
   APPLIED: 1,
   DENIED: 0,
   WITHDRAWN: 0,
+  EXPIRED: 0,
 };
 
 function sortJobs(list: Job[]): Job[] {
@@ -74,6 +75,7 @@ export default function HomePage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [showDenied, setShowDenied] = useState(false);
   const [showWithdrawn, setShowWithdrawn] = useState(false);
+  const [showExpired, setShowExpired] = useState(false);
   const [companySearch, setCompanySearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [queueCount, setQueueCount] = useState<number | null>(null);
@@ -112,6 +114,7 @@ export default function HomePage() {
     if (showDeleted) params.set("showDeleted", "true");
     if (showDenied) params.set("showDenied", "true");
     if (showWithdrawn) params.set("showWithdrawn", "true");
+    if (showExpired) params.set("showExpired", "true");
     const url = `/api/jobs${params.size ? `?${params}` : ""}`;
     fetch(url)
       .then((r) => r.json())
@@ -122,7 +125,7 @@ export default function HomePage() {
   useEffect(() => {
     refreshJobs();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showDeleted, showDenied, showWithdrawn]);
+  }, [showDeleted, showDenied, showWithdrawn, showExpired]);
 
   // Poll researching jobs every 3s
   useEffect(() => {
@@ -281,22 +284,39 @@ export default function HomePage() {
                   </Button>
                 )}
                 </div>
-                <div className="flex items-center gap-4 shrink-0">
-                  {(["denied", "withdrawn", "deleted"] as const).map((key) => {
-                    const checked = key === "denied" ? showDenied : key === "withdrawn" ? showWithdrawn : showDeleted;
-                    const setter = key === "denied" ? setShowDenied : key === "withdrawn" ? setShowWithdrawn : setShowDeleted;
-                    return (
-                      <label key={key} className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => setter(e.target.checked)}
-                          className="accent-foreground"
-                        />
-                        Show {key}
-                      </label>
-                    );
-                  })}
+                <div className="flex items-center gap-2 shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 gap-1.5 text-sm">
+                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                        Filters
+                        {[showDenied, showWithdrawn, showExpired, showDeleted].filter(Boolean).length > 0 && (
+                          <Badge variant="secondary" className="ml-0.5 px-1 py-0 text-xs leading-none">
+                            {[showDenied, showWithdrawn, showExpired, showDeleted].filter(Boolean).length}
+                          </Badge>
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {([
+                        ["Denied", showDenied, setShowDenied],
+                        ["Withdrawn", showWithdrawn, setShowWithdrawn],
+                        ["Expired", showExpired, setShowExpired],
+                        ["Deleted", showDeleted, setShowDeleted],
+                      ] as [string, boolean, (v: boolean) => void][]).map(([label, active, setter]) => (
+                        <DropdownMenuItem
+                          key={label}
+                          onSelect={(e) => { e.preventDefault(); setter(!active); }}
+                          className="gap-2"
+                        >
+                          <span className="flex h-4 w-4 items-center justify-center">
+                            {active && <Check className="h-3.5 w-3.5" />}
+                          </span>
+                          Show {label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 

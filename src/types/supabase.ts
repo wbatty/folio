@@ -247,6 +247,7 @@ export type Database = {
         | "DENIED"
         | "WITHDRAWN"
         | "RESEARCH_ERROR"
+        | "EXPIRED"
     }
     CompositeTypes: {
       [_ in never]: never
