@@ -43,7 +43,9 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
   const form = useForm({
     defaultValues,
     onSubmit: async ({ value }) => {
-      const dateApplied = value.dateApplied || null;
+      const dateApplied = value.dateApplied
+        ? new Date(value.dateApplied + "T00:00:00.000Z").toISOString()
+        : null;
       const res = await fetch(`/api/jobs/${job.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -62,7 +64,7 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
         title: value.title || null,
         description: value.description || null,
         descriptionFull: value.descriptionFull || null,
-        dateApplied: dateApplied ? new Date(dateApplied).toISOString() : null,
+        dateApplied,
       });
       setOpen(false);
     },
