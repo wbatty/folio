@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
   const showDeleted = req.nextUrl.searchParams.get("showDeleted") === "true";
   const showDenied = req.nextUrl.searchParams.get("showDenied") === "true";
   const showWithdrawn = req.nextUrl.searchParams.get("showWithdrawn") === "true";
+  const showExpired = req.nextUrl.searchParams.get("showExpired") === "true";
 
   let query = supabase
     .from("jobs")
@@ -21,6 +22,9 @@ export async function GET(req: NextRequest) {
   }
   if (!showWithdrawn) {
     query = query.neq("status", "WITHDRAWN");
+  }
+  if (!showExpired) {
+    query = query.neq("status", "EXPIRED");
   }
 
   const { data: jobs } = await query;

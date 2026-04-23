@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { zodField, RequiredQuestionField } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,40 +27,33 @@ interface QuestionsSectionProps {
 }
 
 export function QuestionsSection({ jobId, questions, onQuestionsChange }: QuestionsSectionProps) {
-  const [newQuestion, setNewQuestion] = useState("");
-  const [newContext, setNewContext] = useState("");
-  const [adding, setAdding] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [generateFor, setGenerateFor] = useState<Question | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  function handleCopy(qid: string, text: string) {
-    navigator.clipboard.writeText(text);
-    setCopiedId(qid);
-    setTimeout(() => setCopiedId(null), 2000);
-  }
-
-  async function handleAddQuestion() {
-    if (!newQuestion.trim()) return;
-    setAdding(true);
-    try {
+  const form = useForm({
+    defaultValues: { question: "", context: "" },
+    onSubmit: async ({ value }) => {
       const res = await fetch(`/api/jobs/${jobId}/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: newQuestion, context: newContext || undefined }),
+        body: JSON.stringify({ question: value.question, context: value.context || undefined }),
       });
       if (!res.ok) throw new Error("Failed to add question");
       const q = await res.json();
       onQuestionsChange([...questions, q]);
-      setNewQuestion("");
-      setNewContext("");
+      form.reset();
       setShowAddForm(false);
       setExpandedId(q.id);
-    } finally {
-      setAdding(false);
-    }
+    },
+  });
+
+  function handleCopy(qid: string, text: string) {
+    navigator.clipboard.writeText(text);
+    setCopiedId(qid);
+    setTimeout(() => setCopiedId(null), 2000);
   }
 
   async function handleDelete(qid: string) {
@@ -75,6 +70,11 @@ export function QuestionsSection({ jobId, questions, onQuestionsChange }: Questi
     onQuestionsChange(
       questions.map((q) => (q.id === questionId ? { ...q, response } : q))
     );
+  }
+
+  function handleShowAddForm() {
+    form.reset();
+    setShowAddForm(true);
   }
 
   return (
@@ -177,37 +177,62 @@ export function QuestionsSection({ jobId, questions, onQuestionsChange }: Questi
       {showAddForm ? (
         <Card>
           <CardContent className="p-4 space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Question</Label>
-              <Input
-                placeholder="Enter the application question..."
-                value={newQuestion}
-                onChange={(e) => setNewQuestion(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Additional context (optional)</Label>
-              <Textarea
-                placeholder="Any extra context that might help generate a better response..."
-                value={newContext}
-                onChange={(e) => setNewContext(e.target.value)}
-                rows={2}
-              />
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleAddQuestion} disabled={adding || !newQuestion.trim()}>
-                {adding && <Loader2 className="h-3 w-3 animate-spin" />}
-                Add Question
-              </Button>
-            </div>
+            <form.Field
+              name="question"
+              validators={zodField(RequiredQuestionField)}
+            >
+              {(field) => (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Question</Label>
+                  <Input
+                    placeholder="Enter the application question..."
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    autoFocus
+                  />
+                  {field.state.meta.isTouched && field.state.meta.errors[0] && (
+                    <p className="text-sm text-red-500">{field.state.meta.errors[0]}</p>
+                  )}
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="context">
+              {(field) => (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Additional context (optional)</Label>
+                  <Textarea
+                    placeholder="Any extra context that might help generate a better response..."
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              )}
+            </form.Field>
+
+            <form.Subscribe selector={(s) => [s.isSubmitting, s.values.question] as const}>
+              {([isSubmitting, question]) => (
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => form.handleSubmit()}
+                    disabled={isSubmitting || !question.trim()}
+                  >
+                    {isSubmitting && <Loader2 className="h-3 w-3 animate-spin" />}
+                    Add Question
+                  </Button>
+                </div>
+              )}
+            </form.Subscribe>
           </CardContent>
         </Card>
       ) : (
-        <Button variant="outline" size="sm" className="w-full" onClick={() => setShowAddForm(true)}>
+        <Button variant="outline" size="sm" className="w-full" onClick={handleShowAddForm}>
           <Plus className="h-4 w-4" />
           Add Question
         </Button>

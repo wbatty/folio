@@ -1,5 +1,23 @@
 import { z } from "zod";
 
+// ─── Form validation helper ───────────────────────────────────────────────────
+
+export function zodField(schema: z.ZodType) {
+  const validate = ({ value }: { value: unknown }) => {
+    const r = schema.safeParse(value);
+    return r.success ? undefined : r.error.issues[0]?.message;
+  };
+  return { onChange: validate, onSubmit: validate } as const;
+}
+
+// ─── Reusable field-level schemas ─────────────────────────────────────────────
+
+export const UrlField = z.url({ error: "Must be a valid URL" });
+export const OptionalUrlField = z.url({ error: "Must be a valid URL" }).or(z.literal(""));
+export const RequiredNameField = z.string().min(1, "Name is required").max(200);
+export const RequiredQuestionField = z.string().min(1, "Question is required").max(1000);
+export const RequiredContentField = z.string().min(1, "Cannot be empty").max(5000);
+
 // ─── Job Status ───────────────────────────────────────────────────────────────
 
 export const JobStatusEnum = z.enum([
@@ -11,6 +29,7 @@ export const JobStatusEnum = z.enum([
   "OFFERED",
   "DENIED",
   "WITHDRAWN",
+  "EXPIRED",
 ]);
 export type JobStatus = z.infer<typeof JobStatusEnum>;
 
@@ -26,9 +45,9 @@ export type JobExtraction = z.infer<typeof JobExtractionSchema>;
 // ─── API Request Bodies ───────────────────────────────────────────────────────
 
 export const CreateJobSchema = z.object({
-  url: z.string().url("Must be a valid URL"),
-  company: z.string().optional(),
-  title: z.string().optional(),
+  url: UrlField,
+  company: z.string().max(200).optional(),
+  title: z.string().max(200).optional(),
 });
 export type CreateJobInput = z.infer<typeof CreateJobSchema>;
 
@@ -39,27 +58,27 @@ export const UpdateStatusSchema = z.object({
 export type UpdateStatusInput = z.infer<typeof UpdateStatusSchema>;
 
 export const CreateQuestionSchema = z.object({
-  question: z.string().min(1, "Question is required"),
-  context: z.string().optional(),
+  question: RequiredQuestionField,
+  context: z.string().max(2000, "Context is too long").optional(),
 });
 export type CreateQuestionInput = z.infer<typeof CreateQuestionSchema>;
 
 export const UpdateQuestionSchema = z.object({
   response: z.string().optional(),
-  question: z.string().optional(),
-  context: z.string().optional(),
+  question: z.string().min(1).max(1000).optional(),
+  context: z.string().max(2000).optional(),
 });
 export type UpdateQuestionInput = z.infer<typeof UpdateQuestionSchema>;
 
 export const CreateNoteSchema = z.object({
-  content: z.string().min(1, "Note cannot be empty"),
+  content: RequiredContentField,
 });
 export type CreateNoteInput = z.infer<typeof CreateNoteSchema>;
 
 // ─── CSV Import ───────────────────────────────────────────────────────────────
 
 export const ImportJobRowSchema = z.object({
-  url: z.string().url(),
+  url: UrlField,
   company: z.string().optional(),
   title: z.string().optional(),
   status: JobStatusEnum.default("APPLIED"),
@@ -76,33 +95,57 @@ export type CsvImportInput = z.infer<typeof CsvImportSchema>;
 // ─── Companies ────────────────────────────────────────────────────────────────
 
 export const CreateCompanySchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  site: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  job_listing_index: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  name: RequiredNameField,
+  site: OptionalUrlField.optional(),
+  job_listing_index: OptionalUrlField.optional(),
 });
 export type CreateCompanyInput = z.infer<typeof CreateCompanySchema>;
 
+// Server-side: accepts null to clear values
 export const UpdateCompanySchema = z.object({
-  name: z.string().min(1).optional(),
-  site: z.string().url().optional().nullable(),
-  job_listing_index: z.string().url().optional().nullable(),
-  last_checked_at: z.string().datetime().optional().nullable(),
+  name: z.string().min(1).max(200).optional(),
+  site: z.url().optional().nullable(),
+  job_listing_index: z.url().optional().nullable(),
+  last_checked_at: z.iso.datetime().optional().nullable(),
 });
 export type UpdateCompanyInput = z.infer<typeof UpdateCompanySchema>;
 
+// Client-side form: empty string means clear, date inputs give YYYY-MM-DD
+export const UpdateCompanyFormSchema = z.object({
+  name: RequiredNameField,
+  site: OptionalUrlField.optional(),
+  job_listing_index: OptionalUrlField.optional(),
+  last_checked_at: z.string().optional(),
+});
+export type UpdateCompanyFormInput = z.infer<typeof UpdateCompanyFormSchema>;
+
 export const MergeCompanySchema = z.object({
-  targetId: z.string().uuid("Must be a valid company ID"),
+  targetId: z.uuid({ error: "Must be a valid company ID" }),
 });
 export type MergeCompanyInput = z.infer<typeof MergeCompanySchema>;
 
+// Server-side: accepts datetime strings
 export const UpdateJobSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   descriptionFull: z.string().optional(),
-  dateApplied: z.string().datetime().optional().nullable(),
+  dateApplied: z.iso.datetime().optional().nullable(),
   resumeId: z.string().uuid().optional().nullable(),
 });
 export type UpdateJobInput = z.infer<typeof UpdateJobSchema>;
+
+// Client-side form: date inputs give YYYY-MM-DD
+export const UpdateJobFormSchema = z.object({
+  title: z.string().max(300, "Title is too long").optional(),
+  description: z.string().max(2000, "Description is too long").optional(),
+  descriptionFull: z.string().optional(),
+  dateApplied: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date")
+    .or(z.literal(""))
+    .optional(),
+});
+export type UpdateJobFormInput = z.infer<typeof UpdateJobFormSchema>;
 
 // ─── AI: Generate ─────────────────────────────────────────────────────────────
 

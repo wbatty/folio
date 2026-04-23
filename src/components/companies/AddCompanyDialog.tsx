@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { zodField, RequiredNameField } from "@/lib/schemas";
 import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,27 +22,15 @@ interface AddCompanyDialogProps {
 
 export function AddCompanyDialog({ onCreated }: AddCompanyDialogProps) {
   const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  function handleOpenChange(value: boolean) {
-    if (value) {
-      setName("");
-      setError(null);
-    }
-    setOpen(value);
-  }
-
-  async function handleCreate() {
-    if (!name.trim()) return;
-    setSaving(true);
-    setError(null);
-    try {
+  const form = useForm({
+    defaultValues: { name: "" },
+    onSubmit: async ({ value }) => {
       const res = await fetch("/api/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({ name: value.name.trim() }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -48,10 +38,23 @@ export function AddCompanyDialog({ onCreated }: AddCompanyDialogProps) {
       }
       onCreated();
       setOpen(false);
+    },
+  });
+
+  function handleOpenChange(value: boolean) {
+    if (value) {
+      form.reset({ name: "" });
+      setServerError(null);
+    }
+    setOpen(value);
+  }
+
+  async function handleCreate() {
+    setServerError(null);
+    try {
+      await form.handleSubmit();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create");
-    } finally {
-      setSaving(false);
+      setServerError(err instanceof Error ? err.message : "Failed to create");
     }
   }
 
@@ -68,30 +71,41 @@ export function AddCompanyDialog({ onCreated }: AddCompanyDialogProps) {
           <DialogTitle>Add company</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="new-company-name">Name</Label>
-            <Input
-              id="new-company-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Acme Corp"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreate();
-              }}
-            />
-          </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          <form.Field name="name" validators={zodField(RequiredNameField)}>
+            {(field) => (
+              <div className="space-y-1.5">
+                <Label htmlFor="new-company-name">Name</Label>
+                <Input
+                  id="new-company-name"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  placeholder="Acme Corp"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+                />
+                {field.state.meta.isTouched && field.state.meta.errors[0] && (
+                  <p className="text-sm text-red-500">{field.state.meta.errors[0]}</p>
+                )}
+              </div>
+            )}
+          </form.Field>
+          {serverError && <p className="text-sm text-red-500">{serverError}</p>}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleCreate} disabled={saving || !name.trim()}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Create
-          </Button>
-        </DialogFooter>
+
+        <form.Subscribe selector={(s) => [s.isSubmitting, s.values.name] as const}>
+          {([isSubmitting, name]) => (
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreate} disabled={isSubmitting || !name.trim()}>
+                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Create
+              </Button>
+            </DialogFooter>
+          )}
+        </form.Subscribe>
       </DialogContent>
     </Dialog>
   );
