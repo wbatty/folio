@@ -130,6 +130,7 @@ export const UpdateJobSchema = z.object({
   description: z.string().optional(),
   descriptionFull: z.string().optional(),
   dateApplied: z.iso.datetime().optional().nullable(),
+  resumeId: z.string().uuid().optional().nullable(),
 });
 export type UpdateJobInput = z.infer<typeof UpdateJobSchema>;
 

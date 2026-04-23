@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { ResumeSection } from "@/components/resume/ResumeSection";
+import { ResumeSection, type ResumeListItem } from "@/components/resume/ResumeSection";
 import { MetricsSection } from "@/components/jobs/MetricsSection";
 import { CompaniesSection } from "@/components/companies/CompaniesSection";
 import { JobCard } from "@/components/jobs/JobCard";
@@ -15,14 +15,6 @@ import type { JobStatus } from "@/lib/schemas";
 import { usePrivacy } from "@/lib/privacy-context";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-
-interface Resume {
-  id: string;
-  filename: string;
-  content: string;
-  createdAt: string;
-  hasPdf: boolean;
-}
 
 interface Job {
   id: string;
@@ -66,8 +58,8 @@ function isArchived(job: Job): boolean {
 }
 
 export default function HomePage() {
-  const { privacyMode, togglePrivacy } = usePrivacy();
-  const [resume, setResume] = useState<Resume | null>(null);
+const { privacyMode, togglePrivacy } = usePrivacy();
+  const [resumes, setResumes] = useState<ResumeListItem[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [jobUrl, setJobUrl] = useState("");
@@ -83,9 +75,9 @@ export default function HomePage() {
   const csvFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/resume")
+    fetch("/api/resumes")
       .then((r) => r.json())
-      .then(setResume)
+      .then(setResumes)
       .catch(console.error);
   }, []);
 
@@ -246,7 +238,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
           <aside className="space-y-6">
             {!privacyMode && <MetricsSection />}
-            <ResumeSection resume={resume} onUpload={setResume} />
+            <ResumeSection resumes={resumes} onResumesChange={setResumes} />
           </aside>
 
           <Tabs defaultValue="applications">

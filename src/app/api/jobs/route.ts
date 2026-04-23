@@ -71,11 +71,11 @@ export async function POST(req: NextRequest) {
 
   const { url, company, title } = parsed.data;
 
-  // Get the currently active resume
+  // Get the default resume
   const { data: resume } = await supabase
     .from("resumes")
     .select("id")
-    .order("created_at", { ascending: false })
+    .eq("is_default", true)
     .limit(1)
     .single();
 

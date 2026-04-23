@@ -53,6 +53,13 @@ interface Note {
   createdAt: string;
 }
 
+interface ResumeOption {
+  id: string;
+  filename: string;
+  createdAt: string;
+  isDefault: boolean;
+}
+
 interface Job {
   id: string;
   url: string;
@@ -79,10 +86,10 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  // const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  // const [deleting, setDeleting] = useState(false);
   const [manualHtml, setManualHtml] = useState("");
   const [retrying, setRetrying] = useState(false);
+  const [resumeOptions, setResumeOptions] = useState<ResumeOption[]>([]);
+  const [updatingResume, setUpdatingResume] = useState(false);
 
   const fetchJob = useCallback(() => {
     setLoading(true);
@@ -95,9 +102,17 @@ export default function JobDetailPage() {
       .catch(() => router.push("/"))
       .finally(() => setLoading(false));
   }, [id, router]);
+
   useEffect(() => {
     fetchJob();
   }, [fetchJob]);
+
+  useEffect(() => {
+    fetch("/api/resumes")
+      .then((r) => r.json())
+      .then((data: ResumeOption[]) => setResumeOptions(data))
+      .catch(console.error);
+  }, []);
 
   async function handleStatusChange(status: string) {
     if (!job) return;
@@ -127,6 +142,23 @@ export default function JobDetailPage() {
   //     setDeleting(false);
   //   }
   // }
+
+  async function handleResumeChange(resumeId: string) {
+    if (!job) return;
+    setUpdatingResume(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumeId }),
+      });
+      if (!res.ok) throw new Error("Failed to update resume");
+      const updated = await res.json();
+      setJob((prev) => prev ? { ...prev, resume: updated.resume } : prev);
+    } finally {
+      setUpdatingResume(false);
+    }
+  }
 
   async function handleRescrape(html?: string) {
     if (!job) return;
@@ -172,7 +204,8 @@ export default function JobDetailPage() {
           </Link>
           <div className="flex-1 min-w-0">
             <h1 className="font-semibold text-foreground truncate">
-              {job.title ?? "Unknown Position"}
+              <span style={{marginRight:'8px'}}>{job.title ?? "Unknown Position"}</span>
+                <StatusBadge status={job.status} />
             </h1>
             {job.company && (
               <p className="text-sm text-muted-foreground flex items-center gap-1">
@@ -195,15 +228,6 @@ export default function JobDetailPage() {
           <PrivacyToggle />
           <EditJobDialog job={job} onSave={(updated) => setJob((prev) => prev ? { ...prev, ...updated } : prev)} />
           <DeleteJob job={job} onDelete={() => router.push("/")} />
-          {/* <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={() => setShowDeleteConfirm(true)}
-            title="Delete job"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button> */}
         </div>
       </header>
 
@@ -217,19 +241,36 @@ export default function JobDetailPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
-                <StatusBadge status={job.status} />
                 {job.dateApplied && (
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
                     Applied {new Date(job.dateApplied).toLocaleDateString()}
                   </span>
                 )}
-                {job.resume && (
-                  <span className="text-xs text-muted-foreground/70">
-                    Resume: {job.resume.filename}
-                  </span>
+                {resumeOptions.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    {updatingResume && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                    <Select
+                      value={job.resume?.id ?? "none"}
+                      onValueChange={(v) => handleResumeChange(v)}
+                      disabled={updatingResume}
+                    >
+                      <SelectTrigger className="h-6 text-xs w-44 text-muted-foreground border-0 bg-transparent px-1 shadow-none">
+                        <SelectValue placeholder="No resume" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {resumeOptions.map((r) => (
+                          <SelectItem key={r.id} value={r.id} className="text-xs">
+                            {r.filename}
+                            {r.isDefault && <span className="ml-1 text-muted-foreground">(default)</span>}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
-                {job.sessionId && (
+                    {/* TODO: resolve session ID display when we resolve sessions */}
+                {/* {job.sessionId && (
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-muted-foreground/70">Session:</span>
                     <code
@@ -248,7 +289,7 @@ export default function JobDetailPage() {
                       <Copy className="h-3 w-3" />
                     </Button>
                   </div>
-                )}
+                )} */}
               </div>
               <div className="flex items-center gap-2">
                 {updatingStatus && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}

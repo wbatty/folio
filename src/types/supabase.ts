@@ -180,6 +180,7 @@ export type Database = {
           created_at: string
           filename: string
           id: string
+          is_default: boolean
           pdf_path: string | null
         }
         Insert: {
@@ -187,6 +188,7 @@ export type Database = {
           created_at?: string
           filename: string
           id?: string
+          is_default?: boolean
           pdf_path?: string | null
         }
         Update: {
@@ -194,6 +196,7 @@ export type Database = {
           created_at?: string
           filename?: string
           id?: string
+          is_default?: boolean
           pdf_path?: string | null
         }
         Relationships: []
