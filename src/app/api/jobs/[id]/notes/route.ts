@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { CreateNoteSchema } from "@/lib/schemas";
+import { CacheTag } from "@/lib/cache-tags";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -39,6 +41,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (error || !note) {
     return NextResponse.json({ error: error?.message ?? "Insert failed" }, { status: 500 });
   }
+
+  revalidateTag(CacheTag.jobDetail(id));
 
   return NextResponse.json(
     {

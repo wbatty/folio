@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cacheTag, cacheLife, revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { CreateJobSchema } from "@/lib/schemas";
 import { matchCompanyByUrl, matchOrCreateCompanyByName } from "@/lib/company-matching";
+import { CacheTag } from "@/lib/cache-tags";
 
-export async function GET(req: NextRequest) {
-  const showDeleted = req.nextUrl.searchParams.get("showDeleted") === "true";
-  const showDenied = req.nextUrl.searchParams.get("showDenied") === "true";
-  const showWithdrawn = req.nextUrl.searchParams.get("showWithdrawn") === "true";
-  const showExpired = req.nextUrl.searchParams.get("showExpired") === "true";
+async function fetchJobsList(
+  showDeleted: boolean,
+  showDenied: boolean,
+  showWithdrawn: boolean,
+  showExpired: boolean
+) {
+  "use cache";
+  cacheTag(CacheTag.jobsList);
+  cacheLife({ revalidate: 30 });
 
   let query = supabase
     .from("jobs")
@@ -59,6 +65,16 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  return shaped;
+}
+
+export async function GET(req: NextRequest) {
+  const showDeleted = req.nextUrl.searchParams.get("showDeleted") === "true";
+  const showDenied = req.nextUrl.searchParams.get("showDenied") === "true";
+  const showWithdrawn = req.nextUrl.searchParams.get("showWithdrawn") === "true";
+  const showExpired = req.nextUrl.searchParams.get("showExpired") === "true";
+
+  const shaped = await fetchJobsList(showDeleted, showDenied, showWithdrawn, showExpired);
   return NextResponse.json(shaped);
 }
 
@@ -108,6 +124,10 @@ export async function POST(req: NextRequest) {
     .insert({ job_id: job.id, status: "RESEARCHING", note: "Job added for research" })
     .select()
     .single();
+
+  revalidateTag(CacheTag.jobsList);
+  revalidateTag(CacheTag.companies);
+  revalidateTag(CacheTag.metrics);
 
   return NextResponse.json(
     {

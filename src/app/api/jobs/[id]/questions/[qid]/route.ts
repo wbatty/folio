@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { UpdateQuestionSchema } from "@/lib/schemas";
+import { CacheTag } from "@/lib/cache-tags";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; qid: string }> }
 ) {
-  const { qid } = await params;
+  const { id, qid } = await params;
   const body = await req.json();
 
   const parsed = UpdateQuestionSchema.safeParse(body);
@@ -25,6 +27,8 @@ export async function PATCH(
     return NextResponse.json({ error: error?.message ?? "Update failed" }, { status: 500 });
   }
 
+  revalidateTag(CacheTag.jobDetail(id));
+
   return NextResponse.json({
     id: question.id,
     jobId: question.job_id,
@@ -40,7 +44,8 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string; qid: string }> }
 ) {
-  const { qid } = await params;
+  const { id, qid } = await params;
   await supabase.from("questions").delete().eq("id", qid);
+  revalidateTag(CacheTag.jobDetail(id));
   return NextResponse.json({ success: true });
 }

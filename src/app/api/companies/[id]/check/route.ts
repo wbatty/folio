@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
+import { CacheTag } from "@/lib/cache-tags";
 
 export async function POST(
   _req: NextRequest,
@@ -17,6 +19,8 @@ export async function POST(
   if (error || !data) {
     return NextResponse.json({ error: error?.message ?? "Update failed" }, { status: 500 });
   }
+
+  revalidateTag(CacheTag.companies);
 
   return NextResponse.json({ lastCheckedAt: data.last_checked_at });
 }

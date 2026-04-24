@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { cacheTag, cacheLife } from "next/cache";
 import { supabase } from "@/lib/supabase";
+import { CacheTag } from "@/lib/cache-tags";
+
 const INTERVIEWING_STATUSES = new Set(["INTERVIEWING", "OFFERED"]);
 
 const ACTION_NEEDED_STATUSES = new Set(["PENDING_APPLICATION", "RESEARCH_ERROR"]);
@@ -27,14 +30,18 @@ const ALL_STATUSES = [
 
 type JobStatus = (typeof ALL_STATUSES)[number];
 
-export async function GET() {
+async function fetchMetrics() {
+  "use cache";
+  cacheTag(CacheTag.metrics);
+  cacheLife({ revalidate: 60 });
+
   const { data: jobs } = await supabase
     .from("jobs")
     .select("status, company_id, status_logs(status, created_at)")
     .is("deleted_at", null);
 
   if (!jobs) {
-    return NextResponse.json({ totalApplied: 0, uniqueCompanies: 0, avgTimePerState: {}, totalAppliedCount: 0 });
+    return { totalApplied: 0, uniqueCompanies: 0, avgTimePerState: {}, totalAppliedCount: 0 };
   }
 
   const totalNeedAction = jobs.filter((j) => ACTION_NEEDED_STATUSES.has(j.status)).length;
@@ -42,7 +49,7 @@ export async function GET() {
   const appliedJobs = jobs.filter((j) => APPLIED_STATUSES.has(j.status));
 
   const totalApplied = appliedJobs.length;
-  
+
   const activeInterviews = appliedJobs.filter((j) => INTERVIEWING_STATUSES.has(j.status)).length;
 
   const denied = appliedJobs.filter((j) => j.status === "DENIED").length;
@@ -92,5 +99,10 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ totalApplied, uniqueCompanies, avgTimePerState, totalAppliedCount: totalApplied, activeInterviews, denied, jobsAppliedToday, totalNeedAction });
+  return { totalApplied, uniqueCompanies, avgTimePerState, totalAppliedCount: totalApplied, activeInterviews, denied, jobsAppliedToday, totalNeedAction };
+}
+
+export async function GET() {
+  const metrics = await fetchMetrics();
+  return NextResponse.json(metrics);
 }
