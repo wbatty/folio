@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cacheTag, cacheLife, revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { UpdateJobSchema } from "@/lib/schemas";
+import { CacheTag } from "@/lib/cache-tags";
 
 function mapJob(job: Record<string, unknown>) {
   const companyJoin = job.companies as { name: string } | null;
@@ -47,8 +49,11 @@ function mapJob(job: Record<string, unknown>) {
   };
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+async function fetchJobDetail(id: string) {
+  "use cache";
+  cacheTag(CacheTag.jobDetail(id));
+  cacheTag(CacheTag.jobsList);
+  cacheLife({ revalidate: 30 });
 
   const { data: job } = await supabase
     .from("jobs")
@@ -56,9 +61,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .eq("id", id)
     .single();
 
-  if (!job) {
-    return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  }
+  if (!job) return null;
 
   const duplicateJobs = await supabase
     .from("jobs")
@@ -67,7 +70,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .neq("id", id)
     .is("deleted_at", null);
 
-  // Sort sub-arrays
   const result = {
     ...job,
     status_logs: [...(job.status_logs ?? [])].sort(
@@ -82,7 +84,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     duplicates: duplicateJobs.data ?? [],
   };
 
-  return NextResponse.json(mapJob(result as unknown as Record<string, unknown>));
+  return mapJob(result as unknown as Record<string, unknown>);
+}
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const data = await fetchJobDetail(id);
+
+  if (!data) {
+    return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(data);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -109,6 +122,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (error || !job) {
     return NextResponse.json({ error: error?.message ?? "Update failed" }, { status: 500 });
   }
+
+  revalidateTag(CacheTag.jobDetail(id));
+  revalidateTag(CacheTag.jobsList);
+  revalidateTag(CacheTag.metrics);
 
   const jobData = job as unknown as Record<string, unknown>;
   const companyJoin = jobData.companies as { name: string } | null;
@@ -137,5 +154,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     .from("jobs")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
+
+  revalidateTag(CacheTag.jobDetail(id));
+  revalidateTag(CacheTag.jobsList);
+  revalidateTag(CacheTag.metrics);
+
   return NextResponse.json({ success: true });
 }

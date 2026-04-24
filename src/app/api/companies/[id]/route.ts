@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { UpdateCompanySchema } from "@/lib/schemas";
+import { CacheTag } from "@/lib/cache-tags";
 import type { Database } from "@/types/supabase";
 
 type CompanyUpdate = Database["public"]["Tables"]["companies"]["Update"];
@@ -32,6 +34,8 @@ export async function PATCH(
   if (error || !data) {
     return NextResponse.json({ error: error?.message ?? "Update failed" }, { status: 500 });
   }
+
+  revalidateTag(CacheTag.companies);
 
   return NextResponse.json({
     id: data.id,

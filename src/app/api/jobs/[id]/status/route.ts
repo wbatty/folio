@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { UpdateStatusSchema } from "@/lib/schemas";
+import { CacheTag } from "@/lib/cache-tags";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,6 +32,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await supabase
     .from("status_logs")
     .insert({ job_id: id, status, note });
+
+  revalidateTag(CacheTag.jobDetail(id));
+  revalidateTag(CacheTag.jobsList);
+  revalidateTag(CacheTag.companies);
+  revalidateTag(CacheTag.metrics);
 
   const companyJoin = (job as unknown as Record<string, unknown>).companies as { name: string } | null;
 

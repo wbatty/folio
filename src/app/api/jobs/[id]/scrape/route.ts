@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { chromium } from "playwright";
 import { clean } from "decant";
 import { supabase } from "@/lib/supabase";
 import { parseJob } from "@/lib/claude";
 import { matchOrCreateCompanyByName } from "@/lib/company-matching";
+import { CacheTag } from "@/lib/cache-tags";
 
 /**
  * Reject URLs that resolve to loopback or RFC-1918 private addresses to
@@ -67,6 +69,7 @@ async function extractAndUpdate(id: string, html: string) {
     status: "RESEARCHING",
     note: "Full description scraped",
   });
+  revalidateTag(CacheTag.jobDetail(id));
 
   // 3. Extract structured data via Claude Agent SDK
   const { data: extracted, sessionId } = await parseJob(markdown.slice(0, 15000));
@@ -90,6 +93,11 @@ async function extractAndUpdate(id: string, html: string) {
     status: "PENDING_APPLICATION",
     note: "Research complete",
   });
+
+  revalidateTag(CacheTag.jobDetail(id));
+  revalidateTag(CacheTag.jobsList);
+  revalidateTag(CacheTag.companies);
+  revalidateTag(CacheTag.metrics);
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -129,6 +137,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           status: "PENDING_APPLICATION",
           note: "Research complete",
         });
+
+        revalidateTag(CacheTag.jobDetail(id));
+        revalidateTag(CacheTag.jobsList);
+        revalidateTag(CacheTag.companies);
+        revalidateTag(CacheTag.metrics);
       } catch (err) {
         console.error("Extraction failed for job", id, err);
         await supabase.from("jobs").update({ status: "RESEARCH_ERROR" }).eq("id", id);
@@ -137,6 +150,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           status: "RESEARCH_ERROR",
           note: err instanceof Error ? err.message : "Unknown error during extraction",
         });
+
+        revalidateTag(CacheTag.jobDetail(id));
+        revalidateTag(CacheTag.jobsList);
       }
     })();
     return NextResponse.json({ message: "Extraction started with existing description" });
@@ -160,6 +176,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     status: "RESEARCHING",
     note: manualHtml ? "Retrying with manual HTML" : "Retrying scrape",
   });
+
+  revalidateTag(CacheTag.jobDetail(id));
+  revalidateTag(CacheTag.jobsList);
 
   // Kick off async without blocking the response
   (async () => {
@@ -191,6 +210,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         status: "RESEARCH_ERROR",
         note: err instanceof Error ? err.message : "Unknown error",
       });
+
+      revalidateTag(CacheTag.jobDetail(id));
+      revalidateTag(CacheTag.jobsList);
     }
   })();
 

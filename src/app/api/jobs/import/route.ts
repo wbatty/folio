@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { CsvImportSchema } from "@/lib/schemas";
 import { matchOrCreateCompanyByName } from "@/lib/company-matching";
+import { CacheTag } from "@/lib/cache-tags";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -53,6 +55,12 @@ export async function POST(req: NextRequest) {
       errors.push({ row: i + 1, message: err instanceof Error ? err.message : "Unknown error" });
       skipped++;
     }
+  }
+
+  if (imported > 0) {
+    revalidateTag(CacheTag.jobsList);
+    revalidateTag(CacheTag.companies);
+    revalidateTag(CacheTag.metrics);
   }
 
   return NextResponse.json({ imported, skipped, errors }, { status: 200 });

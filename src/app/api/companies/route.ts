@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cacheTag, cacheLife, revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { CreateCompanySchema } from "@/lib/schemas";
+import { CacheTag } from "@/lib/cache-tags";
 
-export async function GET() {
+async function fetchCompaniesList() {
+  "use cache";
+  cacheTag(CacheTag.companies);
+  cacheLife({ revalidate: 60 });
+
   const [{ data, error }, { data: jobRows }] = await Promise.all([
     supabase.from("companies").select("*"),
     supabase
@@ -12,9 +18,7 @@ export async function GET() {
       .not("company_id", "is", null),
   ]);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  if (error) throw new Error(error.message);
 
   // Build per-company maps from job rows
   const lastAppliedMap: Record<string, string> = {};
@@ -70,7 +74,16 @@ export async function GET() {
     return new Date(da).getTime() - new Date(db).getTime();
   });
 
-  return NextResponse.json(companies);
+  return companies;
+}
+
+export async function GET() {
+  try {
+    const companies = await fetchCompaniesList();
+    return NextResponse.json(companies);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Query failed" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -95,6 +108,8 @@ export async function POST(req: NextRequest) {
   if (error || !data) {
     return NextResponse.json({ error: error?.message ?? "Insert failed" }, { status: 500 });
   }
+
+  revalidateTag(CacheTag.companies);
 
   return NextResponse.json(
     {

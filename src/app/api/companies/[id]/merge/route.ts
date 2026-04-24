@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { MergeCompanySchema } from "@/lib/schemas";
+import { CacheTag } from "@/lib/cache-tags";
 
 export async function POST(
   req: NextRequest,
@@ -59,6 +61,10 @@ export async function POST(
   if (deleteError) {
     return NextResponse.json({ error: deleteError.message }, { status: 500 });
   }
+
+  revalidateTag(CacheTag.companies);
+  revalidateTag(CacheTag.jobsList);
+  revalidateTag(CacheTag.metrics);
 
   return NextResponse.json({ success: true, targetId });
 }
