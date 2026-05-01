@@ -4,6 +4,9 @@ import { clean } from "decant";
 import { supabase } from "@/lib/supabase";
 import { parseJob } from "@/lib/claude";
 import { matchOrCreateCompanyByName } from "@/lib/company-matching";
+import { createLimiter } from "@/lib/concurrency-limiter";
+
+const scrapeLimiter = createLimiter(2);
 
 /**
  * Reject URLs that resolve to loopback or RFC-1918 private addresses to
@@ -161,8 +164,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     note: manualHtml ? "Retrying with manual HTML" : "Retrying scrape",
   });
 
-  // Kick off async without blocking the response
-  (async () => {
+  // Kick off async without blocking the response, with concurrency limiting
+  scrapeLimiter(async () => {
     try {
       let html: string;
 
@@ -192,7 +195,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         note: err instanceof Error ? err.message : "Unknown error",
       });
     }
-  })();
+  }).catch((err) => console.error("Scrape limiter error for job", id, err));
 
   return NextResponse.json({ message: "Scraping started" });
 }

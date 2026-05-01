@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { ResumeSection, type ResumeListItem } from "@/components/resume/ResumeSection";
-import { MetricsSection } from "@/components/jobs/MetricsSection";
 import { CompaniesSection } from "@/components/companies/CompaniesSection";
 import { JobCard } from "@/components/jobs/JobCard";
 import { CsvImportButton } from "@/components/jobs/CsvImportButton";
@@ -10,7 +9,7 @@ import { AddJobDialog } from "@/components/jobs/AddJobDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Briefcase, ChevronRight, Inbox, Loader2, MoreHorizontal, Upload, Eye, EyeOff, X, SlidersHorizontal, Check, BarChart2 } from "lucide-react";
+import { Plus, Briefcase, ChevronRight, Inbox, Loader2, MoreHorizontal, Upload, Eye, EyeOff, X, SlidersHorizontal, Check } from "lucide-react";
 import Link from "next/link";
 import type { JobStatus } from "@/lib/schemas";
 import { usePrivacy } from "@/lib/privacy-context";
@@ -71,6 +70,8 @@ const { privacyMode, togglePrivacy } = usePrivacy();
   const [showExpired, setShowExpired] = useState(false);
   const [companySearch, setCompanySearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [companyHiddenJobs, setCompanyHiddenJobs] = useState<Job[]>([]);
+  const [showCompanyHidden, setShowCompanyHidden] = useState(false);
   const [queueCount, setQueueCount] = useState<number | null>(null);
   const [runningConsumer, setRunningConsumer] = useState(false);
   const csvFileRef = useRef<HTMLInputElement>(null);
@@ -119,6 +120,29 @@ const { privacyMode, togglePrivacy } = usePrivacy();
     refreshJobs();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleted, showDenied, showWithdrawn, showExpired]);
+
+  useEffect(() => {
+    const company = companySearch.trim().toLowerCase();
+    if (!company) {
+      setCompanyHiddenJobs([]);
+      setShowCompanyHidden(false);
+      return;
+    }
+    const HIDDEN_STATUSES = new Set(["DENIED", "WITHDRAWN", "EXPIRED"]);
+    fetch("/api/jobs?showDeleted=true&showDenied=true&showWithdrawn=true&showExpired=true")
+      .then((r) => r.json())
+      .then((allJobs: Job[]) => {
+        setCompanyHiddenJobs(
+          allJobs.filter(
+            (j) =>
+              j.company?.toLowerCase().includes(company) &&
+              (HIDDEN_STATUSES.has(j.status) || !!j.deletedAt)
+          )
+        );
+      })
+      .catch(console.error);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companySearch]);
 
   // Poll researching jobs every 3s
   useEffect(() => {
@@ -179,38 +203,25 @@ const { privacyMode, togglePrivacy } = usePrivacy();
   const archivedJobs = sortJobs(filteredJobs.filter(isArchived));
   const visibleJobs = [...activeJobs, ...archivedJobs];
 
+  const filteredJobIds = new Set(filteredJobs.map((j) => j.id));
+  const inactiveJobs = sortJobs(companyHiddenJobs.filter((j) => !filteredJobIds.has(j.id)));
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-foreground" />
-              <h1 className="text-lg font-semibold text-foreground">Folio</h1>
-            </div>
-            <Link href="/reports" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <BarChart2 className="h-4 w-4" />
-              Reports
-            </Link>
-          </div>
+      <header className="bg-card border-b border-border px-6 py-3.5">
+        <div className="max-w-4xl mx-auto flex items-center gap-4">
           <div className="flex items-center gap-2">
-          
-          <form onSubmit={handleAddJob} className="flex items-center gap-2">
-            <Input
-              type="url"
-              placeholder="Paste job posting URL..."
-              value={jobUrl}
-              onChange={(e) => setJobUrl(e.target.value)}
-              className="w-72"
-            />
-            <Button type="submit" disabled={!jobUrl}>
-              <Plus className="h-4 w-4" />
-              Add Job
-            </Button>
-          </form><CsvImportButton onImportComplete={refreshJobs} triggerRef={csvFileRef} />
+            <Briefcase className="h-4 w-4 text-foreground" />
+            <h1 className="text-sm font-semibold text-foreground">Folio</h1>
+          </div>
+          <Link href="/reports" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            Reports
+          </Link>
+          <div className="flex-1" />
+          <CsvImportButton onImportComplete={refreshJobs} triggerRef={csvFileRef} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-7 w-7">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -230,93 +241,101 @@ const { privacyMode, togglePrivacy } = usePrivacy();
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {queueCount !== null && <Badge variant="outline">{queueCount}</Badge>}
           <AddJobDialog
             open={dialogOpen}
             onOpenChange={setDialogOpen}
             initialUrl={jobUrl}
             onAdd={handleDialogAdd}
           />
-          </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
-          <aside className="space-y-6">
-            {!privacyMode && <MetricsSection />}
-            <ResumeSection resumes={resumes} onResumesChange={setResumes} />
-          </aside>
+      <main className="max-w-4xl mx-auto px-6">
+        {/* Add job — given its own focused zone between header and tabs */}
+        <div className="pt-6 pb-5">
+          <form onSubmit={handleAddJob} className="flex gap-2">
+            <Input
+              type="url"
+              placeholder="Paste a job posting URL..."
+              value={jobUrl}
+              onChange={(e) => setJobUrl(e.target.value)}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={!jobUrl}>
+              <Plus className="h-4 w-4" />
+              Add Job
+            </Button>
+          </form>
+        </div>
 
-          <Tabs defaultValue="applications">
-            <TabsList variant="line">
-              <TabsTrigger variant="line" value="applications">
-                Applications ({visibleJobs.length})
-              </TabsTrigger>
-              <TabsTrigger variant="line" value="companies">
-                Companies
-              </TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="companies">
+          <TabsList variant="line">
+            <TabsTrigger variant="line" value="companies">
+              Companies
+            </TabsTrigger>
+            <TabsTrigger variant="line" value="applications">
+              Applications ({visibleJobs.length})
+            </TabsTrigger>
+            <TabsTrigger variant="line" value="resumes">
+              Resumes
+            </TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="applications">
-              <div className="flex items-center justify-between mb-4 gap-4">
-                <div className="relative w-full max-w-sm">
-                <Input
-                  type="text"
-                  placeholder="Filter by company…"
-                  value={companySearch}
-                  onChange={(e) => setCompanySearch(e.target.value)}
-                  className="w-40 h-7 text-sm"
-                />
-                {companySearch && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCompanySearch("")}
-                    style={{
-                      position: 'relative',
-                      top:'4px',
-                      marginLeft: '4px',
-                    }}
-                  >
-                    <X className="h-3 w-3 text-muted-foreground" />
-                  </Button>
-                )}
+          <TabsContent value="companies">
+            <div className="pt-4 pb-12">
+              <CompaniesSection />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="applications">
+            <div className="pt-4 pb-12">
+              <div className="flex items-center justify-between mb-4 gap-3">
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="text"
+                    placeholder="Filter by company..."
+                    value={companySearch}
+                    onChange={(e) => setCompanySearch(e.target.value)}
+                    className="h-7 w-44 text-sm"
+                  />
+                  {companySearch && (
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCompanySearch("")}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-7 gap-1.5 text-sm">
-                        <SlidersHorizontal className="h-3.5 w-3.5" />
-                        Filters
-                        {[showDenied, showWithdrawn, showExpired, showDeleted].filter(Boolean).length > 0 && (
-                          <Badge variant="secondary" className="ml-0.5 px-1 py-0 text-xs leading-none">
-                            {[showDenied, showWithdrawn, showExpired, showDeleted].filter(Boolean).length}
-                          </Badge>
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {([
-                        ["Denied", showDenied, setShowDenied],
-                        ["Withdrawn", showWithdrawn, setShowWithdrawn],
-                        ["Expired", showExpired, setShowExpired],
-                        ["Deleted", showDeleted, setShowDeleted],
-                      ] as [string, boolean, (v: boolean) => void][]).map(([label, active, setter]) => (
-                        <DropdownMenuItem
-                          key={label}
-                          onSelect={(e) => { e.preventDefault(); setter(!active); }}
-                          className="gap-2"
-                        >
-                          <span className="flex h-4 w-4 items-center justify-center">
-                            {active && <Check className="h-3.5 w-3.5" />}
-                          </span>
-                          Show {label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 gap-1.5 text-sm">
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
+                      Filters
+                      {[showDenied, showWithdrawn, showExpired, showDeleted].filter(Boolean).length > 0 && (
+                        <Badge variant="secondary" className="ml-0.5 px-1 py-0 text-xs leading-none">
+                          {[showDenied, showWithdrawn, showExpired, showDeleted].filter(Boolean).length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {([
+                      ["Denied", showDenied, setShowDenied],
+                      ["Withdrawn", showWithdrawn, setShowWithdrawn],
+                      ["Expired", showExpired, setShowExpired],
+                      ["Deleted", showDeleted, setShowDeleted],
+                    ] as [string, boolean, (v: boolean) => void][]).map(([label, active, setter]) => (
+                      <DropdownMenuItem
+                        key={label}
+                        onSelect={(e) => { e.preventDefault(); setter(!active); }}
+                        className="gap-2"
+                      >
+                        <span className="flex h-4 w-4 items-center justify-center">
+                          {active && <Check className="h-3.5 w-3.5" />}
+                        </span>
+                        Show {label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {loadingJobs ? (
@@ -364,15 +383,40 @@ const { privacyMode, togglePrivacy } = usePrivacy();
                       )}
                     </div>
                   )}
+                  {inactiveJobs.length > 0 && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => setShowCompanyHidden((v) => !v)}
+                        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors select-none w-full py-1"
+                      >
+                        <ChevronRight className={`h-3.5 w-3.5 transition-transform ${showCompanyHidden ? "rotate-90" : ""}`} />
+                        Inactive ({inactiveJobs.length})
+                      </button>
+                      {showCompanyHidden && (
+                        <div className="space-y-3 mt-2">
+                          {inactiveJobs.map((job) => (
+                            <JobCard
+                              key={job.id}
+                              job={job}
+                              onStatusChange={handleStatusChange}
+                              deleted={!!job.deletedAt}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
-            </TabsContent>
+            </div>
+          </TabsContent>
 
-            <TabsContent value="companies">
-              <CompaniesSection />
-            </TabsContent>
-          </Tabs>
-        </div>
+          <TabsContent value="resumes">
+            <div className="pt-4 pb-12">
+              <ResumeSection resumes={resumes} onResumesChange={setResumes} />
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

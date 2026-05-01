@@ -127,6 +127,7 @@ export type MergeCompanyInput = z.infer<typeof MergeCompanySchema>;
 // Server-side: accepts datetime strings
 export const UpdateJobSchema = z.object({
   title: z.string().optional(),
+  company: z.string().max(200).optional().nullable(),
   description: z.string().optional(),
   descriptionFull: z.string().optional(),
   dateApplied: z.iso.datetime().optional().nullable(),

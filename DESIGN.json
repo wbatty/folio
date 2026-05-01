@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-04-29T00:00:00.000Z",
+  "title": "Design System: Folio",
+  "extensions": {
+    "colorMeta": {
+      "carbon-ink": {
+        "role": "neutral",
+        "displayName": "Carbon Ink",
+        "canonical": "oklch(0.148 0.008 50)",
+        "tonalRamp": [
+          "oklch(0.148 0.008 50)",
+          "oklch(0.200 0.008 50)",
+          "oklch(0.266 0.007 50)",
+          "oklch(0.371 0.007 50)",
+          "oklch(0.439 0.007 50)",
+          "oklch(0.542 0.008 50)",
+          "oklch(0.706 0.006 50)",
+          "oklch(0.850 0.005 50)"
+        ]
+      },
+      "warm-clay": {
+        "role": "primary",
+        "displayName": "Warm Clay",
+        "canonical": "oklch(0.48 0.12 52)",
+        "tonalRamp": [
+          "oklch(0.22 0.06 52)",
+          "oklch(0.30 0.09 52)",
+          "oklch(0.38 0.11 52)",
+          "oklch(0.48 0.12 52)",
+          "oklch(0.58 0.11 52)",
+          "oklch(0.68 0.10 52)",
+          "oklch(0.78 0.07 52)",
+          "oklch(0.90 0.04 52)"
+        ]
+      },
+      "warm-amber": {
+        "role": "primary",
+        "displayName": "Warm Amber",
+        "canonical": "oklch(0.60 0.10 52)",
+        "tonalRamp": [
+          "oklch(0.22 0.06 52)",
+          "oklch(0.32 0.09 52)",
+          "oklch(0.42 0.11 52)",
+          "oklch(0.52 0.12 52)",
+          "oklch(0.60 0.10 52)",
+          "oklch(0.70 0.08 52)",
+          "oklch(0.82 0.06 52)",
+          "oklch(0.93 0.03 52)"
+        ]
+      },
+      "blank-canvas": {
+        "role": "neutral",
+        "displayName": "Blank Canvas",
+        "canonical": "oklch(0.99 0.006 50)",
+        "tonalRamp": [
+          "oklch(0.439 0.007 50)",
+          "oklch(0.556 0.007 50)",
+          "oklch(0.706 0.006 50)",
+          "oklch(0.850 0.005 50)",
+          "oklch(0.916 0.006 50)",
+          "oklch(0.968 0.006 50)",
+          "oklch(0.985 0.005 50)",
+          "oklch(0.99 0.006 50)"
+        ]
+      },
+      "pale-smoke": {
+        "role": "neutral",
+        "displayName": "Pale Smoke",
+        "canonical": "oklch(0.968 0.006 50)",
+        "tonalRamp": [
+          "oklch(0.439 0.007 50)",
+          "oklch(0.556 0.007 50)",
+          "oklch(0.706 0.006 50)",
+          "oklch(0.850 0.005 50)",
+          "oklch(0.916 0.006 50)",
+          "oklch(0.968 0.006 50)",
+          "oklch(0.985 0.005 50)",
+          "oklch(0.99 0.006 50)"
+        ]
+      },
+      "stone-gray": {
+        "role": "neutral",
+        "displayName": "Stone Gray",
+        "canonical": "oklch(0.542 0.008 50)",
+        "tonalRamp": [
+          "oklch(0.148 0.008 50)",
+          "oklch(0.200 0.008 50)",
+          "oklch(0.371 0.007 50)",
+          "oklch(0.542 0.008 50)",
+          "oklch(0.706 0.006 50)",
+          "oklch(0.850 0.005 50)",
+          "oklch(0.916 0.006 50)",
+          "oklch(0.968 0.006 50)"
+        ]
+      },
+      "chalk-line": {
+        "role": "neutral",
+        "displayName": "Chalk Line",
+        "canonical": "oklch(0.916 0.006 50)",
+        "tonalRamp": [
+          "oklch(0.542 0.008 50)",
+          "oklch(0.706 0.006 50)",
+          "oklch(0.850 0.005 50)",
+          "oklch(0.916 0.006 50)",
+          "oklch(0.968 0.006 50)",
+          "oklch(0.975 0.005 50)",
+          "oklch(0.985 0.005 50)",
+          "oklch(0.99 0.006 50)"
+        ]
+      },
+      "ember-red": {
+        "role": "tertiary",
+        "displayName": "Ember Red",
+        "canonical": "oklch(0.577 0.245 27.325)",
+        "tonalRamp": [
+          "oklch(0.25 0.12 27)",
+          "oklch(0.35 0.18 27)",
+          "oklch(0.45 0.22 27)",
+          "oklch(0.577 0.245 27)",
+          "oklch(0.65 0.22 27)",
+          "oklch(0.75 0.18 27)",
+          "oklch(0.85 0.10 27)",
+          "oklch(0.95 0.04 27)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings, card titles, modal titles. The practical ceiling for most screens."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Card content, descriptions, form labels, AI chat responses. Line length capped at 65-75ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Status badges, metadata, timestamps, secondary annotations."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ring-only",
+        "value": "inset 0 0 0 1px oklch(0.145 0 0 / 0.1)",
+        "purpose": "Cards and surfaces at rest. Replaces a shadow — distinguishes surface without depth."
+      },
+      {
+        "name": "hover-lift",
+        "value": "0px 4px 8px -1px hsl(0 0% 0% / 0.05)",
+        "purpose": "Cards and interactive surfaces on hover. The minimum legible lift."
+      },
+      {
+        "name": "elevated",
+        "value": "0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 1px 2px -2px hsl(0 0% 0% / 0.10)",
+        "purpose": "Dropdowns, popovers, select menus — second layer above the page."
+      },
+      {
+        "name": "floating",
+        "value": "0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 4px 6px -2px hsl(0 0% 0% / 0.10)",
+        "purpose": "Dialogs, command menus, tooltips — the highest layer."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Default easing for state transitions — ease-out-expo. Snaps in, doesn't linger."
+      },
+      {
+        "name": "duration-fast",
+        "value": "150ms",
+        "purpose": "Button states, hover fills, opacity changes."
+      },
+      {
+        "name": "duration-medium",
+        "value": "200ms",
+        "purpose": "Card hover lift, dropdown open/close."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "The single most important action on screen. Used once per view.",
+      "html": "<button class=\"ds-btn-primary\">Add Job</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 10px; background: var(--primary, oklch(0.205 0 0)); color: var(--primary-foreground, oklch(0.985 0 0)); border: 1px solid transparent; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; font-family: ui-sans-serif, system-ui, sans-serif; line-height: 1; white-space: nowrap; cursor: pointer; transition: background 150ms cubic-bezier(0.16, 1, 0.3, 1), opacity 150ms ease; outline: none; user-select: none; } .ds-btn-primary:hover { background: oklch(0.205 0 0 / 0.8); } .ds-btn-primary:focus-visible { border-color: var(--ring, oklch(0.708 0 0)); box-shadow: 0 0 0 3px oklch(0.708 0 0 / 0.5); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary and icon actions inside cards, list items, and navigation. No visual presence at rest.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 10px; background: transparent; color: var(--foreground, oklch(0.145 0 0)); border: 1px solid transparent; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; font-family: ui-sans-serif, system-ui, sans-serif; white-space: nowrap; cursor: pointer; transition: background 150ms ease, color 150ms ease; outline: none; } .ds-btn-ghost:hover { background: var(--muted, oklch(0.97 0 0)); } .ds-btn-ghost:focus-visible { border-color: var(--ring, oklch(0.708 0 0)); box-shadow: 0 0 0 3px oklch(0.708 0 0 / 0.5); } .ds-btn-ghost:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary actions that need to be visible but not dominant. Paired with a primary button.",
+      "html": "<button class=\"ds-btn-outline\">Import CSV</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 10px; background: var(--background, oklch(1 0 0)); color: var(--foreground, oklch(0.145 0 0)); border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; font-family: ui-sans-serif, system-ui, sans-serif; white-space: nowrap; cursor: pointer; box-shadow: 0px 4px 8px -1px hsl(0 0% 0% / 0.05); transition: background 150ms ease; outline: none; } .ds-btn-outline:hover { background: var(--muted, oklch(0.97 0 0)); } .ds-btn-outline:focus-visible { border-color: var(--ring, oklch(0.708 0 0)); box-shadow: 0 0 0 3px oklch(0.708 0 0 / 0.5); } .ds-btn-outline:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Status Badge — Interviewing",
+      "kind": "chip",
+      "refersTo": "badge-status",
+      "description": "Pipeline status indicator. One of nine possible states. Always appears alongside a job title.",
+      "html": "<span class=\"ds-badge ds-badge-interviewing\">Interviewing</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 2px 8px; border-radius: 9999px; border: 1px solid; font-size: 0.75rem; font-weight: 500; font-family: ui-sans-serif, system-ui, sans-serif; white-space: nowrap; line-height: 1; } .ds-badge-interviewing { background: oklch(0.5 0.2 300 / 0.1); color: oklch(0.4 0.2 300); border-color: oklch(0.75 0.12 300); } .ds-badge-offered { background: oklch(0.5 0.15 145 / 0.1); color: oklch(0.35 0.15 145); border-color: oklch(0.75 0.1 145); } .ds-badge-pending { background: oklch(0.5 0.15 240 / 0.1); color: oklch(0.4 0.15 240); border-color: oklch(0.75 0.1 240); } .ds-badge-applied { background: oklch(0.75 0.15 85 / 0.2); color: oklch(0.45 0.12 85); border-color: oklch(0.8 0.1 85); } .ds-badge-denied { background: oklch(0.577 0.245 27 / 0.1); color: oklch(0.45 0.2 27); border-color: oklch(0.75 0.15 27); } .ds-badge-neutral { background: var(--muted, oklch(0.97 0 0)); color: var(--muted-foreground, oklch(0.556 0 0)); border-color: var(--border, oklch(0.922 0 0)); }"
+    },
+    {
+      "name": "Job Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "The primary working surface. One card per job in the pipeline. Links to full job detail.",
+      "html": "<div class=\"ds-job-card\"><div class=\"ds-job-card-content\"><div class=\"ds-job-card-top\"><div class=\"ds-job-card-info\"><h3 class=\"ds-job-card-title\">Senior Product Designer</h3><p class=\"ds-job-card-company\">Anthropic</p></div><span class=\"ds-badge ds-badge-interviewing\">Interviewing</span></div><p class=\"ds-job-card-meta\">Applied Jan 15</p></div></div>",
+      "css": ".ds-job-card { display: flex; flex-direction: column; overflow: hidden; border-radius: 0.875rem; background: var(--card, oklch(1 0 0)); box-shadow: inset 0 0 0 1px oklch(0.145 0 0 / 0.1); transition: box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; } .ds-job-card:hover { box-shadow: 0px 4px 8px -1px hsl(0 0% 0% / 0.05), inset 0 0 0 1px oklch(0.145 0 0 / 0.1); } .ds-job-card-content { padding: 16px; } .ds-job-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 4px; } .ds-job-card-info { min-width: 0; flex: 1; } .ds-job-card-title { font-size: 0.875rem; font-weight: 600; font-family: ui-sans-serif, system-ui, sans-serif; color: var(--foreground, oklch(0.145 0 0)); margin: 0 0 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-job-card-company { font-size: 0.75rem; font-weight: 400; font-family: ui-sans-serif, system-ui, sans-serif; color: var(--muted-foreground, oklch(0.556 0 0)); margin: 0; } .ds-job-card-meta { font-size: 0.75rem; color: var(--muted-foreground, oklch(0.556 0 0)); margin: 8px 0 0 0; font-family: ui-sans-serif, system-ui, sans-serif; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Stroke-style input on a transparent background. Used for URL paste, search, and form fields.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Paste a job URL...\" />",
+      "css": ".ds-input { display: block; width: 100%; min-width: 0; height: 36px; padding: 4px 10px; background: transparent; color: var(--foreground, oklch(0.145 0 0)); border: 1px solid var(--input, oklch(0.922 0 0)); border-radius: 0.5rem; font-size: 0.875rem; font-family: ui-sans-serif, system-ui, sans-serif; line-height: 1.5; box-shadow: 0px 4px 8px -1px hsl(0 0% 0% / 0.05); transition: border-color 150ms ease, box-shadow 150ms ease; outline: none; } .ds-input::placeholder { color: var(--muted-foreground, oklch(0.556 0 0)); } .ds-input:focus-visible { border-color: var(--ring, oklch(0.708 0 0)); box-shadow: 0 0 0 3px oklch(0.708 0 0 / 0.5); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; } .ds-input[aria-invalid='true'] { border-color: var(--destructive, oklch(0.577 0.245 27.325)); box-shadow: 0 0 0 3px oklch(0.577 0.245 27.325 / 0.2); }"
+    },
+    {
+      "name": "Nav Tabs",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Top-level navigation between Jobs, Companies, and Reports. Text-based with active underline.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab ds-tab-active\">Jobs</button><button class=\"ds-tab\">Companies</button><button class=\"ds-tab\">Reports</button></nav>",
+      "css": ".ds-tabs { display: inline-flex; align-items: center; gap: 4px; } .ds-tab { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; background: transparent; color: var(--muted-foreground, oklch(0.556 0 0)); border: none; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; font-family: ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: color 150ms ease, background 150ms ease; outline: none; position: relative; } .ds-tab:hover { color: var(--foreground, oklch(0.145 0 0)); background: var(--muted, oklch(0.97 0 0)); } .ds-tab-active { color: var(--foreground, oklch(0.145 0 0)); background: var(--muted, oklch(0.97 0 0)); } .ds-tab:focus-visible { box-shadow: 0 0 0 3px oklch(0.708 0 0 / 0.5); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Instrument Panel",
+    "overview": "Folio is built for the long middle of a job search: weeks of careful triage, the daily discipline of moving applications forward, the evening reviews that make the next morning manageable. Its design reflects that reality — composed, purposeful, nothing decorative. Like a well-calibrated instrument panel, every reading earns its position. The interface does not celebrate the search; it supports it.\n\nThe system is restrained by design: an achromatic neutral foundation with a single chromatic layer reserved for semantic pipeline status. Color in Folio is never decorative — always informational. The type scale is modest and built for repeated daily use. Surfaces are flat at rest, lifting only under interaction.\n\nFolio explicitly rejects the corporate-blue anxiety of LinkedIn, Indeed, and Facebook: the notification-badge pressure, the metric-heavy feeds, the aggressive CTAs. Nothing here is trying to sell anything.",
+    "keyCharacteristics": [
+      "Achromatic foundation with semantic color only at the pipeline status layer",
+      "Flat surfaces at rest; structural shadows on hover and elevation",
+      "Tight type scale with no display hierarchy",
+      "Rounded-md for interactive elements, rounded-xl for containers",
+      "System font stack: legible, zero loading overhead"
+    ],
+    "rules": [
+      {
+        "name": "The Instrument Reading Rule",
+        "body": "Color in Folio is exclusively informational. If a color is not communicating pipeline state, a destructive condition, or an interaction state, it should not be there.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Display Rule",
+        "body": "There is no display or hero type size in Folio. The largest visible text is a job title or section heading. Nothing here is meant to impress at a glance; everything is meant to be read at work.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "A shadow at rest means nothing — it reads as invisible noise. If a surface needs to be distinguished at rest, use a ring. If it needs to respond to interaction, use a shadow. Never use both as decoration.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use semantic status badge colors for pipeline state communication — they are the only intentional color in the system.",
+      "Do use ring-1 ring-foreground/10 on card surfaces at rest instead of shadows.",
+      "Do keep button labels direct and actionable: one verb or a short noun phrase.",
+      "Do cap body text columns at 65-75ch, particularly in job detail and AI chat views.",
+      "Do use ghost buttons for secondary actions inside cards and list items.",
+      "Do use OKLCH for any new color tokens. Never add hex or HSL to the :root block.",
+      "Do flatten shadows on new surfaces at rest. If distinction is needed at rest, use a ring."
+    ],
+    "donts": [
+      "Don't reproduce the notification-badge anxiety, metric-heavy feeds, or aggressive CTAs of LinkedIn, Indeed, or Facebook.",
+      "Don't add decorative color: no gradient accents, no colored headings, no tinted card backgrounds unless they carry status meaning.",
+      "Don't use a display or hero type size.",
+      "Don't use border-left or border-right greater than 1px as a colored accent stripe on list items or cards.",
+      "Don't nest cards.",
+      "Don't use glassmorphism or backdrop-filter effects.",
+      "Don't use shadows on page-level surfaces at rest."
+    ]
+  }
+}

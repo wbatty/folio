@@ -40,13 +40,24 @@ export async function GET() {
 
   const timeline = Object.entries(buckets).map(([week, count]) => ({ week, count }));
 
-  // Funnel
-  const applied = jobs.filter((j) => APPLIED_STATUSES.has(j.status));
+  // Funnel — use status_logs to track the flow Pending→Applied→(Denied|Interviewing)→(Denied|Offered|Withdrawn)
+  type LoggedJob = typeof jobs[number];
+  const everHad = (job: LoggedJob, status: string) => {
+    if (job.status === status) return true;
+    return (job.status_logs as { status: string }[] | null)?.some((l) => l.status === status) ?? false;
+  };
+
+  const pendingJobs = jobs.filter((j) => everHad(j, "PENDING_APPLICATION"));
+  const appliedJobs = jobs.filter((j) => APPLIED_STATUSES.has(j.status));
+  const interviewedJobs = appliedJobs.filter((j) => everHad(j, "INTERVIEWING") || everHad(j, "OFFERED"));
   const funnel = {
-    applied: applied.length,
-    interviewed: applied.filter((j) => INTERVIEW_STATUSES.has(j.status)).length,
-    offered: applied.filter((j) => j.status === "OFFERED").length,
-    denied: applied.filter((j) => j.status === "DENIED").length,
+    pending: pendingJobs.length,
+    applied: appliedJobs.length,
+    deniedDirect: appliedJobs.filter((j) => j.status === "DENIED" && !everHad(j, "INTERVIEWING") && !everHad(j, "OFFERED")).length,
+    interviewed: interviewedJobs.length,
+    postInterviewDenied: interviewedJobs.filter((j) => j.status === "DENIED").length,
+    offered: interviewedJobs.filter((j) => everHad(j, "OFFERED")).length,
+    postInterviewWithdrawn: interviewedJobs.filter((j) => j.status === "WITHDRAWN").length,
   };
 
   // Status distribution

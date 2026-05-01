@@ -44,6 +44,10 @@ function mapJob(job: Record<string, unknown>) {
       const dupCompany = dup.companies as { name: string } | null;
       return { id: dup.id, company: dupCompany?.name ?? null, title: dup.title, status: dup.status };
     }),
+    sameCompanyJobs: ((job.same_company_jobs as unknown[]) ?? []).map((j: unknown) => {
+      const sj = j as Record<string, unknown>;
+      return { id: sj.id, title: sj.title, status: sj.status, dateApplied: sj.date_applied, createdAt: sj.created_at };
+    }),
   };
 }
 
@@ -67,6 +71,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .neq("id", id)
     .is("deleted_at", null);
 
+  const sameCompanyJobs = job.company_id
+    ? await supabase
+        .from("jobs")
+        .select("id, title, status, date_applied, created_at")
+        .eq("company_id", job.company_id)
+        .neq("id", id)
+        .neq("url", job.url)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+
   // Sort sub-arrays
   const result = {
     ...job,
@@ -80,6 +95,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     ),
     duplicates: duplicateJobs.data ?? [],
+    same_company_jobs: sameCompanyJobs.data ?? [],
   };
 
   return NextResponse.json(mapJob(result as unknown as Record<string, unknown>));
@@ -93,6 +109,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   const body = parsed.data;
 
+  let companyId: string | null | undefined;
+  if (body.company !== undefined) {
+    if (!body.company) {
+      companyId = null;
+    } else {
+      const { data: existing } = await supabase
+        .from("companies")
+        .select("id")
+        .ilike("name", body.company)
+        .limit(1)
+        .single();
+      if (existing) {
+        companyId = existing.id;
+      } else {
+        const { data: created } = await supabase
+          .from("companies")
+          .insert({ name: body.company })
+          .select("id")
+          .single();
+        companyId = created?.id ?? null;
+      }
+    }
+  }
+
   const { data: job, error } = await supabase
     .from("jobs")
     .update({
@@ -101,6 +141,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       description_full: body.descriptionFull,
       date_applied: body.dateApplied ? new Date(body.dateApplied).toISOString() : undefined,
       ...(body.resumeId !== undefined ? { resume_id: body.resumeId } : {}),
+      ...(companyId !== undefined ? { company_id: companyId } : {}),
     })
     .eq("id", id)
     .select("*, companies(name), resume:resumes(id, filename)")

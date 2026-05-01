@@ -21,6 +21,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import Markdown from 'react-markdown'
 import DeleteJob from "@/components/job-detail/DeleteJob";
 import { EditJobDialog } from "@/components/job-detail/EditJobDialog";
+import { EmailsSection } from "@/components/job-detail/EmailsSection";
+import { SameCompanyJobs } from "@/components/job-detail/SameCompanyJobs";
 
 const ALL_STATUSES: { value: JobStatus; label: string }[] = [
   { value: "RESEARCHING", label: "Researching" },
@@ -76,6 +78,7 @@ interface Job {
   questions: Question[];
   notes: Note[];
   duplicates?: { id: string; company: string; title: string; status: JobStatus }[];
+  sameCompanyJobs?: { id: string; title: string | null; status: JobStatus; dateApplied: string | null; createdAt: string }[];
 }
 
 export default function JobDetailPage() {
@@ -419,10 +422,20 @@ export default function JobDetailPage() {
                 />
               </CardContent>
             </Card>
+
+            {/* Emails */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-foreground">Emails</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <EmailsSection jobId={job.id} />
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Status History */}
-          <aside>
+          {/* Status History + Same Company */}
+          <aside className="space-y-6">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold text-foreground">Status History</CardTitle>
@@ -431,6 +444,20 @@ export default function JobDetailPage() {
                 <StatusLog logs={job.statusLogs} />
               </CardContent>
             </Card>
+
+            {job.sameCompanyJobs && job.sameCompanyJobs.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5" />
+                    Other jobs at {job.company ?? "this company"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <SameCompanyJobs jobs={job.sameCompanyJobs} />
+                </CardContent>
+              </Card>
+            )}
           </aside>
         </div>
       </main>

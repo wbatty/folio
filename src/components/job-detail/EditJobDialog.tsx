@@ -5,6 +5,7 @@ import { useForm } from "@tanstack/react-form";
 import { Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CompanyCombobox } from "@/components/ui/company-combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,6 +20,7 @@ import {
 interface JobFields {
   id: string;
   title: string | null;
+  company: string | null;
   description: string | null;
   descriptionFull: string | null;
   dateApplied: string | null;
@@ -35,6 +37,7 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
 
   const defaultValues = {
     title: job.title ?? "",
+    company: job.company ?? "",
     description: job.description ?? "",
     descriptionFull: job.descriptionFull ?? "",
     dateApplied: job.dateApplied ? job.dateApplied.slice(0, 10) : "",
@@ -51,6 +54,7 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: value.title || null,
+          company: value.company || null,
           description: value.description || null,
           descriptionFull: value.descriptionFull || null,
           dateApplied,
@@ -62,6 +66,7 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
       }
       onSave({
         title: value.title || null,
+        company: value.company || null,
         description: value.description || null,
         descriptionFull: value.descriptionFull || null,
         dateApplied,
@@ -113,6 +118,22 @@ export function EditJobDialog({ job, onSave }: EditJobDialogProps) {
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   placeholder="Software Engineer"
+                />
+                {field.state.meta.errors[0] && (
+                  <p className="text-sm text-red-500">{field.state.meta.errors[0]}</p>
+                )}
+              </div>
+            )}
+          </form.Field>
+
+          <form.Field name="company">
+            {(field) => (
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-company">Company</Label>
+                <CompanyCombobox
+                  id="edit-company"
+                  value={field.state.value}
+                  onChange={(name) => field.handleChange(name)}
                 />
                 {field.state.meta.errors[0] && (
                   <p className="text-sm text-red-500">{field.state.meta.errors[0]}</p>
