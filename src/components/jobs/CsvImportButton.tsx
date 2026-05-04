@@ -138,7 +138,7 @@ export function CsvImportButton({ onImportComplete, triggerRef }: Props) {
   const [rows, setRows] = useState<ImportJobRow[]>([]);
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [result, setResult] = useState<{ enqueued: number; errors: number } | null>(null);
   const [importError, setImportError] = useState("");
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -172,7 +172,7 @@ export function CsvImportButton({ onImportComplete, triggerRef }: Props) {
         setImportError(data?.error ?? "Import failed");
         return;
       }
-      setResult({ imported: data.imported, skipped: data.skipped });
+      setResult({ enqueued: data.enqueued ?? 0, errors: (data.errors ?? []).length });
       onImportComplete();
     } catch {
       setImportError("Network error — import failed");
@@ -214,9 +214,14 @@ export function CsvImportButton({ onImportComplete, triggerRef }: Props) {
 
           {result ? (
             <div className="py-4 space-y-1 text-sm">
-              <p className="text-foreground font-medium">{result.imported} job{result.imported !== 1 ? "s" : ""} imported successfully.</p>
-              {result.skipped > 0 && (
-                <p className="text-muted-foreground">{result.skipped} row{result.skipped !== 1 ? "s" : ""} skipped due to errors.</p>
+              <p className="text-foreground font-medium">
+                {result.enqueued} job{result.enqueued !== 1 ? "s" : ""} queued for processing.
+              </p>
+              <p className="text-muted-foreground">
+                The dedupe worker will skip URLs already in your list. Rows will appear as they finish.
+              </p>
+              {result.errors > 0 && (
+                <p className="text-muted-foreground">{result.errors} row{result.errors !== 1 ? "s" : ""} skipped due to errors.</p>
               )}
             </div>
           ) : (

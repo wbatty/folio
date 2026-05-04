@@ -2,7 +2,9 @@
  * Supabase Edge Function: telegram-webhook
  *
  * Receives incoming Telegram Bot API webhook updates, validates the secret
- * token, and enqueues the job URL into the Supabase pgmq 'job_ingest' queue.
+ * token, and enqueues the raw URL into the Supabase pgmq 'job_ingest' queue.
+ * Dedupe / hashing / company resolution happens in scripts/dedupe-worker.ts —
+ * this function does no DB lookups beyond the RPC call.
  *
  * Deploy:  supabase functions deploy telegram-webhook
  * Register webhook URL with Telegram (one-time, after deploy):
@@ -33,7 +35,6 @@ async function sendMessage(chatId: number, text: string): Promise<void> {
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
-  // Validate Telegram webhook secret token
   const secret = req.headers.get("x-telegram-bot-api-secret-token");
   if (secret !== Deno.env.get("TELEGRAM_WEBHOOK_SECRET")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -56,7 +57,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     | undefined;
 
   if (!message?.text || !message?.chat) {
-    // Ignore non-message updates (edits, inline queries, etc.)
     return new Response(JSON.stringify({ ok: true }), {
       headers: { "Content-Type": "application/json" },
     });
@@ -65,7 +65,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const chatId = (message.chat as Record<string, unknown>).id as number;
   const text = (message.text as string).trim();
 
-  // Validate URL
   let jobUrl: string;
   try {
     const parsed = new URL(text);
@@ -88,29 +87,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Duplicate check: skip queue and notify user if URL already exists
-  const { data: existing } = await supabase
-    .from("jobs")
-    .select("id, title, status, companies(name)")
-    .eq("url", jobUrl)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (existing) {
-    const company = (existing.companies as { name: string } | null)?.name;
-    const label = [existing.title, company].filter(Boolean).join(" at ") || jobUrl;
-    await sendMessage(
-      chatId,
-      `This job is already in your list!\n\n${label}\nStatus: ${existing.status}\n\nNo duplicate was added.`
-    );
-    return new Response(JSON.stringify({ ok: true }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // Enqueue the URL via the public RPC wrapper
   const { error } = await supabase.rpc("send_job_ingest", {
-    msg: { url: jobUrl, chat_id: chatId },
+    msg: { url: jobUrl, source: "telegram", chat_id: chatId },
   });
 
   if (error) {
@@ -124,12 +102,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
   }
 
-  await sendMessage(
-    chatId,
-    `Got it! I've queued this job for processing:\n${jobUrl}\n\nI'll let you know once it's been added and research has started.`
-  );
+  await sendMessage(chatId, `Got it, processing:\n${jobUrl}`);
 
-  // Telegram requires a 200 response
   return new Response(JSON.stringify({ ok: true }), {
     headers: { "Content-Type": "application/json" },
   });

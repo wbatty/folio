@@ -9,7 +9,7 @@ import { AddJobDialog } from "@/components/jobs/AddJobDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Briefcase, ChevronRight, Inbox, Loader2, MoreHorizontal, Upload, Eye, EyeOff, X, SlidersHorizontal, Check } from "lucide-react";
+import { Plus, Briefcase, ChevronRight, Inbox, MoreHorizontal, Upload, Eye, EyeOff, X, SlidersHorizontal, Check } from "lucide-react";
 import Link from "next/link";
 import type { JobStatus } from "@/lib/schemas";
 import { usePrivacy } from "@/lib/privacy-context";
@@ -73,7 +73,6 @@ const { privacyMode, togglePrivacy } = usePrivacy();
   const [companyHiddenJobs, setCompanyHiddenJobs] = useState<Job[]>([]);
   const [showCompanyHidden, setShowCompanyHidden] = useState(false);
   const [queueCount, setQueueCount] = useState<number | null>(null);
-  const [runningConsumer, setRunningConsumer] = useState(false);
   const csvFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -83,24 +82,18 @@ const { privacyMode, togglePrivacy } = usePrivacy();
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
+  const refreshQueueCount = useCallback(() => {
     fetch("/api/queue")
       .then((r) => r.json())
       .then((d) => setQueueCount(d.count))
       .catch(console.error);
   }, []);
 
-  async function handleRunConsumer() {
-    setRunningConsumer(true);
-    try {
-      await fetch("/api/queue", { method: "POST" });
-      const d = await fetch("/api/queue").then((r) => r.json());
-      setQueueCount(d.count);
-      refreshJobs();
-    } finally {
-      setRunningConsumer(false);
-    }
-  }
+  useEffect(() => {
+    refreshQueueCount();
+    const interval = setInterval(refreshQueueCount, 5000);
+    return () => clearInterval(interval);
+  }, [refreshQueueCount]);
 
   function refreshJobs() {
     setLoadingJobs(true);
@@ -177,12 +170,12 @@ const { privacyMode, togglePrivacy } = usePrivacy();
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url, company: company || undefined, title: title || undefined }),
     });
-    if (!res.ok) throw new Error("Failed to create job");
-    const job: Job = await res.json();
-    setJobs((prev) => [job, ...prev]);
+    if (!res.ok) throw new Error("Failed to queue job");
     setJobUrl("");
-    // Fire-and-forget scrape
-    fetch(`/api/jobs/${job.id}/scrape`, { method: "POST" }).catch(console.error);
+    // The dedupe worker inserts the row + enqueues the scrape; poll the list
+    // briefly to surface it as soon as it lands.
+    refreshQueueCount();
+    setTimeout(refreshJobs, 1500);
   }
 
   const handleStatusChange = useCallback(async (jobId: string, status: JobStatus) => {
@@ -235,8 +228,8 @@ const { privacyMode, togglePrivacy } = usePrivacy();
                 Import CSV
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleRunConsumer} disabled={runningConsumer}>
-                {runningConsumer ? <Loader2 className="h-4 w-4 animate-spin" /> : <Inbox className="h-4 w-4" />}
+              <DropdownMenuItem disabled className="opacity-100">
+                <Inbox className="h-4 w-4" />
                 Queue{queueCount !== null ? ` (${queueCount})` : ""}
               </DropdownMenuItem>
             </DropdownMenuContent>

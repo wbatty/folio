@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
 import { CsvImportSchema } from "@/lib/schemas";
-import { matchOrCreateCompanyByName } from "@/lib/company-matching";
+import { enqueueRaw } from "@/lib/ingest";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -11,49 +10,26 @@ export async function POST(req: NextRequest) {
   }
 
   const { rows } = parsed.data;
-  let imported = 0;
-  let skipped = 0;
+  let enqueued = 0;
   const errors: { row: number; message: string }[] = [];
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     try {
-      const companyId = await matchOrCreateCompanyByName(row.company ?? null);
-
-      const { data: job, error: jobError } = await supabase
-        .from("jobs")
-        .insert({
-          url: row.url,
-          company_id: companyId,
-          title: row.title ?? null,
-          status: row.status,
-          date_applied: row.dateApplied ?? null,
-        })
-        .select()
-        .single();
-
-      if (jobError || !job) {
-        errors.push({ row: i + 1, message: jobError?.message ?? "Insert failed" });
-        skipped++;
-        continue;
-      }
-
-      await supabase
-        .from("status_logs")
-        .insert({ job_id: job.id, status: row.status, note: "Imported from CSV" });
-
-      if (row.noteContent?.trim()) {
-        await supabase
-          .from("notes")
-          .insert({ job_id: job.id, content: row.noteContent.trim() });
-      }
-
-      imported++;
+      await enqueueRaw({
+        url: row.url,
+        source: "csv",
+        ...(row.company?.trim() ? { company: row.company.trim() } : {}),
+        ...(row.title?.trim() ? { title: row.title.trim() } : {}),
+        status: row.status,
+        ...(row.dateApplied ? { date_applied: row.dateApplied } : {}),
+        ...(row.noteContent?.trim() ? { note: row.noteContent.trim() } : {}),
+      });
+      enqueued++;
     } catch (err) {
-      errors.push({ row: i + 1, message: err instanceof Error ? err.message : "Unknown error" });
-      skipped++;
+      errors.push({ row: i + 1, message: err instanceof Error ? err.message : "Enqueue failed" });
     }
   }
 
-  return NextResponse.json({ imported, skipped, errors }, { status: 200 });
+  return NextResponse.json({ enqueued, errors }, { status: 202 });
 }

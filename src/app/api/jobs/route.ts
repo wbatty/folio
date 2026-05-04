@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { CreateJobSchema } from "@/lib/schemas";
-import { matchCompanyByUrl, matchOrCreateCompanyByName } from "@/lib/company-matching";
+import { enqueueRaw } from "@/lib/ingest";
 
 export async function GET(req: NextRequest) {
   const showDeleted = req.nextUrl.searchParams.get("showDeleted") === "true";
@@ -71,61 +71,19 @@ export async function POST(req: NextRequest) {
 
   const { url, company, title } = parsed.data;
 
-  // Get the default resume
-  const { data: resume } = await supabase
-    .from("resumes")
-    .select("id")
-    .eq("is_default", true)
-    .limit(1)
-    .single();
-
-  // If the user provided a company name, match/create by name; otherwise fall back to URL-based matching
-  const companyId = company?.trim()
-    ? await matchOrCreateCompanyByName(company.trim())
-    : await matchCompanyByUrl(url);
-
-  const { data: job, error: jobError } = await supabase
-    .from("jobs")
-    .insert({
+  try {
+    await enqueueRaw({
       url,
-      resume_id: resume?.id ?? null,
-      status: "RESEARCHING",
-      company_id: companyId,
+      source: "api",
+      ...(company?.trim() ? { company: company.trim() } : {}),
       ...(title?.trim() ? { title: title.trim() } : {}),
-    })
-    .select()
-    .single();
-
-  if (jobError || !job) {
+    });
+  } catch (err) {
     return NextResponse.json(
-      { error: jobError?.message ?? "Insert failed" },
+      { error: err instanceof Error ? err.message : "Enqueue failed" },
       { status: 500 }
     );
   }
 
-  const { data: statusLog } = await supabase
-    .from("status_logs")
-    .insert({ job_id: job.id, status: "RESEARCHING", note: "Job added for research" })
-    .select()
-    .single();
-
-  return NextResponse.json(
-    {
-      id: job.id,
-      url: job.url,
-      company: null, // company name not yet known (comes from scrape)
-      companyId: job.company_id ?? null,
-      title: job.title,
-      description: job.description,
-      status: job.status,
-      dateApplied: job.date_applied,
-      resumeId: job.resume_id,
-      createdAt: job.created_at,
-      updatedAt: job.updated_at,
-      statusLogs: statusLog
-        ? [{ status: statusLog.status, note: statusLog.note, createdAt: statusLog.created_at }]
-        : [],
-    },
-    { status: 201 }
-  );
+  return NextResponse.json({ enqueued: true }, { status: 202 });
 }

@@ -7,8 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "consumer": "tsx --env-file=.env.local scripts/queue-consumer.ts",
-    "setup-webhook": "tsx --env-file=.env.local scripts/setup-telegram-webhook.ts"
+    "workers": "tsx --env-file=.env.local scripts/workers.ts",
+    "setup-webhook": "tsx --env-file=.env.local scripts/setup-telegram-webhook.ts",
+    "test:url-normalize": "tsx scripts/test-url-normalize.ts",
+    "backfill-url-hash": "tsx --env-file=.env.local scripts/backfill-url-hash.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.104",
@@ -24,9 +26,11 @@
     "@radix-ui/react-toast": "^1.2.15",
     "@supabase/supabase-js": "^2.103.0",
     "@tanstack/react-form": "^1.29.1",
+    "bullmq": "^5.76.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "decant": "github:wbatty/decant#claude/add-module-import-QA9rn",
+    "ioredis": "^5.10.1",
     "lucide-react": "^1.8.0",
     "next": "16.2.3",
     "next-themes": "^0.4.6",
