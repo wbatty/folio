@@ -1,10 +1,20 @@
 import { chromium } from "playwright";
-import { clean } from "decant";
+import TurndownService from "turndown";
 import { supabase } from "@/lib/supabase";
 import { parseJob } from "@/lib/claude";
 import { matchOrCreateCompanyByName } from "@/lib/company-matching";
-
-function assertPublicUrl(urlString: string): void {
+import { detectATS } from "@/lib/ats-detect";
+import {
+  fetchGreenhouse,
+  fetchLever,
+  fetchAshby,
+  fetchWorkday,
+  fetchUnknown,
+  WAFBlockedError,
+  JobNotFoundError,
+  type JobData,
+} from "@/lib/ats-fetch";
+export function assertPublicUrl(urlString: string): void {
   let url: URL;
   try {
     url = new URL(urlString);
@@ -41,15 +51,25 @@ async function resolveCompanyId(jobId: string, extractedName: string | null | un
   return matchOrCreateCompanyByName(extractedName);
 }
 
-async function htmlToMarkdown(html: string): Promise<string> {
+const turndown = new TurndownService({
+  headingStyle: "atx",
+  codeBlockStyle: "fenced",
+  bulletListMarker: "-",
+});
+turndown.addRule("clean-nbs", {
+  filter: ["li"],
+  replacement: (content) => content.trim() ? `- ${content.trim()}\n` : "",
+});
+
+export function htmlToMarkdown(html: string): string {
   try {
-    return (await clean(html)).markdown;
+    return turndown.turndown(html);
   } catch {
     return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 20000);
   }
 }
 
-async function fetchHtml(url: string): Promise<string> {
+async function fetchHtmlPlaywright(url: string): Promise<string> {
   assertPublicUrl(url);
   const browser = await chromium.launch({ headless: true });
   try {
@@ -78,6 +98,42 @@ async function extractAndUpdate(jobId: string, markdown: string): Promise<void> 
     .update({
       company_id: companyId,
       title: extracted.title,
+      description: extracted.description,
+      session_id: sessionId,
+      status: "PENDING_APPLICATION",
+    })
+    .eq("id", jobId);
+
+  await supabase.from("status_logs").insert({
+    job_id: jobId,
+    status: "PENDING_APPLICATION",
+    note: "Research complete",
+  });
+}
+
+async function extractAndUpdateFromJobData(jobId: string, data: JobData): Promise<void> {
+  const markdown = data.description_markdown;
+  await supabase.from("jobs").update({ description_full: markdown }).eq("id", jobId);
+  if (data.application_questions.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from("jobs") as any)
+      .update({ application_questions: data.application_questions })
+      .eq("id", jobId);
+  }
+  await supabase.from("status_logs").insert({
+    job_id: jobId,
+    status: "RESEARCHING",
+    note: "Full description scraped",
+  });
+
+  const { data: extracted, sessionId } = await parseJob(markdown.slice(0, 15000));
+  const companyId = await resolveCompanyId(jobId, extracted.company ?? data.company);
+
+  await supabase
+    .from("jobs")
+    .update({
+      company_id: companyId,
+      title: extracted.title ?? data.title,
       description: extracted.description,
       session_id: sessionId,
       status: "PENDING_APPLICATION",
@@ -127,10 +183,49 @@ export async function runScrape(jobId: string, options: ScrapeOptions = {}): Pro
       return;
     }
 
-    const html = options.manualHtml ?? (await fetchHtml(job.url));
-    const markdown = await htmlToMarkdown(html);
-    await extractAndUpdate(jobId, markdown);
+    if (options.manualHtml) {
+      const markdown = htmlToMarkdown(options.manualHtml);
+      await extractAndUpdate(jobId, markdown);
+      return;
+    }
+
+    const route = await detectATS(job.url);
+
+    if (route.ats === "greenhouse") {
+      await extractAndUpdateFromJobData(jobId, await fetchGreenhouse(route.boardToken, route.jobId));
+    } else if (route.ats === "ashby") {
+      await extractAndUpdateFromJobData(jobId, await fetchAshby(route.boardHandle, route.jobId));
+    } else if (route.ats === "workday") {
+      await extractAndUpdateFromJobData(jobId, await fetchWorkday(job.url));
+    } else if (route.ats === "lever") {
+      try {
+        await extractAndUpdateFromJobData(jobId, await fetchLever(route.company, route.jobId));
+      } catch (err) {
+        if (!(err instanceof WAFBlockedError)) throw err;
+        console.warn(`[${jobId}] Lever WAF-blocked, falling back to Playwright`);
+        await extractAndUpdate(jobId, htmlToMarkdown(await fetchHtmlPlaywright(job.url)));
+      }
+    } else {
+      try {
+        const data = await fetchUnknown(job.url);
+        await extractAndUpdate(jobId, data.description_markdown);
+      } catch (err) {
+        if (!(err instanceof WAFBlockedError)) throw err;
+        console.warn(`[${jobId}] WAF-blocked, falling back to Playwright`);
+        await extractAndUpdate(jobId, htmlToMarkdown(await fetchHtmlPlaywright(job.url)));
+      }
+    }
   } catch (err) {
+    if (err instanceof JobNotFoundError) {
+      console.log(`Scrape: job posting not found for ${jobId}, marking EXPIRED`);
+      await supabase.from("jobs").update({ status: "EXPIRED" }).eq("id", jobId);
+      await supabase.from("status_logs").insert({
+        job_id: jobId,
+        status: "EXPIRED",
+        note: "Job posting returned 404 — listing no longer available",
+      });
+      return;
+    }
     console.error(`Scrape failed for job ${jobId}:`, err);
     await supabase.from("jobs").update({ status: "RESEARCH_ERROR" }).eq("id", jobId);
     await supabase.from("status_logs").insert({

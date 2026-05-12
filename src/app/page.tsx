@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ResumeSection, type ResumeListItem } from "@/components/resume/ResumeSection";
 import { CompaniesSection } from "@/components/companies/CompaniesSection";
 import { JobCard } from "@/components/jobs/JobCard";
@@ -10,11 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Briefcase, ChevronRight, Inbox, MoreHorizontal, Upload, Eye, EyeOff, X, SlidersHorizontal, Check } from "lucide-react";
+import { QueueMonitor } from "@/components/ui/queue-monitor";
 import Link from "next/link";
 import type { JobStatus } from "@/lib/schemas";
 import { usePrivacy } from "@/lib/privacy-context";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+
+type MainTab = "companies" | "need-action" | "interviewing" | "applied-today" | "applications" | "resumes";
+const APP_TABS = new Set<MainTab>(["need-action", "interviewing", "applied-today", "applications"]);
 
 interface Job {
   id: string;
@@ -57,8 +62,28 @@ function isArchived(job: Job): boolean {
   return job.status === "APPLIED" && Date.now() - new Date(job.dateApplied || job.updatedAt).getTime() > TWO_WEEKS_MS;
 }
 
+function applyTabFilter(jobs: Job[], tab: MainTab): Job[] {
+  const today = new Date().toISOString().slice(0, 10);
+  if (tab === "need-action") return jobs.filter((j) => j.status === "PENDING_APPLICATION" || j.status === "RESEARCH_ERROR");
+  if (tab === "interviewing") return jobs.filter((j) => j.status === "INTERVIEWING");
+  if (tab === "applied-today") return jobs.filter((j) => j.dateApplied?.startsWith(today));
+  return jobs;
+}
+
+const VALID_TABS = new Set<string>(["companies", "need-action", "interviewing", "applied-today", "applications", "resumes"]);
+
 export default function HomePage() {
+  return (
+    <Suspense>
+      <HomePageContent />
+    </Suspense>
+  );
+}
+
+function HomePageContent() {
 const { privacyMode, togglePrivacy } = usePrivacy();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [resumes, setResumes] = useState<ResumeListItem[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
@@ -72,8 +97,13 @@ const { privacyMode, togglePrivacy } = usePrivacy();
   const [showArchived, setShowArchived] = useState(false);
   const [companyHiddenJobs, setCompanyHiddenJobs] = useState<Job[]>([]);
   const [showCompanyHidden, setShowCompanyHidden] = useState(false);
-  const [queueCount, setQueueCount] = useState<number | null>(null);
+  const rawTab = searchParams.get("tab") ?? "companies";
+  const activeTab: MainTab = VALID_TABS.has(rawTab) ? (rawTab as MainTab) : "companies";
   const csvFileRef = useRef<HTMLInputElement>(null);
+
+  function setActiveTab(tab: MainTab) {
+    router.replace(`/?tab=${tab}`, { scroll: false });
+  }
 
   useEffect(() => {
     fetch("/api/resumes")
@@ -81,19 +111,6 @@ const { privacyMode, togglePrivacy } = usePrivacy();
       .then(setResumes)
       .catch(console.error);
   }, []);
-
-  const refreshQueueCount = useCallback(() => {
-    fetch("/api/queue")
-      .then((r) => r.json())
-      .then((d) => setQueueCount(d.count))
-      .catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    refreshQueueCount();
-    const interval = setInterval(refreshQueueCount, 5000);
-    return () => clearInterval(interval);
-  }, [refreshQueueCount]);
 
   function refreshJobs() {
     setLoadingJobs(true);
@@ -137,14 +154,19 @@ const { privacyMode, togglePrivacy } = usePrivacy();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companySearch]);
 
-  // Poll researching jobs every 3s
+  // Poll researching jobs every 3s — keyed on the sorted id list so the interval
+  // only restarts when the set of RESEARCHING jobs actually changes, not on every setJobs call.
+  const researchingKey = jobs
+    .filter((j) => j.status === "RESEARCHING")
+    .map((j) => j.id)
+    .sort()
+    .join(",");
   useEffect(() => {
-    const researchingIds = jobs.filter((j) => j.status === "RESEARCHING").map((j) => j.id);
-    if (researchingIds.length === 0) return;
-
+    if (!researchingKey) return;
+    const ids = researchingKey.split(",");
     const interval = setInterval(async () => {
       const updated = await Promise.all(
-        researchingIds.map((id) =>
+        ids.map((id) =>
           fetch(`/api/jobs/${id}`).then((r) => r.json()).catch(() => null)
         )
       );
@@ -157,7 +179,8 @@ const { privacyMode, togglePrivacy } = usePrivacy();
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [jobs]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [researchingKey]);
 
   function handleAddJob(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -172,9 +195,6 @@ const { privacyMode, togglePrivacy } = usePrivacy();
     });
     if (!res.ok) throw new Error("Failed to queue job");
     setJobUrl("");
-    // The dedupe worker inserts the row + enqueues the scrape; poll the list
-    // briefly to surface it as soon as it lands.
-    refreshQueueCount();
     setTimeout(refreshJobs, 1500);
   }
 
@@ -188,12 +208,19 @@ const { privacyMode, togglePrivacy } = usePrivacy();
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status } : j)));
   }, []);
 
-  const filteredJobs = companySearch.trim()
+  const today = new Date().toISOString().slice(0, 10);
+  const needActionCount = jobs.filter((j) => j.status === "PENDING_APPLICATION" || j.status === "RESEARCH_ERROR").length;
+  const interviewingCount = jobs.filter((j) => j.status === "INTERVIEWING").length;
+  const appliedTodayCount = jobs.filter((j) => j.dateApplied?.startsWith(today)).length;
+
+  const companyFiltered = companySearch.trim()
     ? jobs.filter((j) => j.company?.toLowerCase().includes(companySearch.toLowerCase()))
     : jobs;
+  const filteredJobs = APP_TABS.has(activeTab) ? applyTabFilter(companyFiltered, activeTab) : companyFiltered;
 
+  const isFiltered = activeTab !== "applications";
   const activeJobs = sortJobs(filteredJobs.filter((j) => !isArchived(j)));
-  const archivedJobs = sortJobs(filteredJobs.filter(isArchived));
+  const archivedJobs = isFiltered ? [] : sortJobs(filteredJobs.filter(isArchived));
   const visibleJobs = [...activeJobs, ...archivedJobs];
 
   const filteredJobIds = new Set(filteredJobs.map((j) => j.id));
@@ -230,7 +257,7 @@ const { privacyMode, togglePrivacy } = usePrivacy();
               <DropdownMenuSeparator />
               <DropdownMenuItem disabled className="opacity-100">
                 <Inbox className="h-4 w-4" />
-                Queue{queueCount !== null ? ` (${queueCount})` : ""}
+                Queue
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -244,8 +271,13 @@ const { privacyMode, togglePrivacy } = usePrivacy();
       </header>
 
       <main className="max-w-4xl mx-auto px-6">
+        {/* Queue / worker monitor */}
+        <div className="pt-5">
+          <QueueMonitor />
+        </div>
+
         {/* Add job — given its own focused zone between header and tabs */}
-        <div className="pt-6 pb-5">
+        <div className="pb-5">
           <form onSubmit={handleAddJob} className="flex gap-2">
             <Input
               type="url"
@@ -261,17 +293,26 @@ const { privacyMode, togglePrivacy } = usePrivacy();
           </form>
         </div>
 
-        <Tabs defaultValue="companies">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MainTab)}>
           <TabsList variant="line">
-            <TabsTrigger variant="line" value="companies">
-              Companies
+            <TabsTrigger variant="line" value="companies">Companies</TabsTrigger>
+            <TabsTrigger variant="line" value="need-action" className="gap-1.5">
+              Need action
+              {needActionCount > 0 && <span className="text-xs font-semibold tabular-nums text-amber-500">{needActionCount}</span>}
             </TabsTrigger>
-            <TabsTrigger variant="line" value="applications">
-              Applications ({visibleJobs.length})
+            <TabsTrigger variant="line" value="interviewing" className="gap-1.5">
+              Interviewing
+              {interviewingCount > 0 && <span className="text-xs tabular-nums text-muted-foreground">{interviewingCount}</span>}
             </TabsTrigger>
-            <TabsTrigger variant="line" value="resumes">
-              Resumes
+            <TabsTrigger variant="line" value="applied-today" className="gap-1.5">
+              Applied today
+              {appliedTodayCount > 0 && <span className="text-xs tabular-nums text-muted-foreground">{appliedTodayCount}</span>}
             </TabsTrigger>
+            <TabsTrigger variant="line" value="applications" className="gap-1.5">
+              All
+              <span className="text-xs tabular-nums text-muted-foreground">{jobs.length}</span>
+            </TabsTrigger>
+            <TabsTrigger variant="line" value="resumes">Resumes</TabsTrigger>
           </TabsList>
 
           <TabsContent value="companies">
@@ -280,7 +321,7 @@ const { privacyMode, togglePrivacy } = usePrivacy();
             </div>
           </TabsContent>
 
-          <TabsContent value="applications">
+          {APP_TABS.has(activeTab) && (
             <div className="pt-4 pb-12">
               <div className="flex items-center justify-between mb-4 gap-3">
                 <div className="flex items-center gap-1.5">
@@ -402,7 +443,7 @@ const { privacyMode, togglePrivacy } = usePrivacy();
                 </div>
               )}
             </div>
-          </TabsContent>
+          )}
 
           <TabsContent value="resumes">
             <div className="pt-4 pb-12">

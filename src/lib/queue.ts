@@ -1,5 +1,6 @@
 import IORedis, { type RedisOptions } from "ioredis";
 import { Queue, Worker, type Processor, type WorkerOptions } from "bullmq";
+import { rawQueueLength } from "@/lib/ingest";
 
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 
@@ -38,6 +39,49 @@ export function getScrapeQueue(): Queue<ScrapeJobData> {
     });
   }
   return globalForQueues.scrapeQueue;
+}
+
+export const QUEUE_STATS_CHANNEL = "queue:stats";
+
+export interface QueueStats {
+  raw: number;
+  scrape: { waiting: number; active: number; delayed: number; failed: number };
+  recentFailures: Array<{
+    id: string;
+    failedReason: string | null;
+    finishedOn: number | null;
+    data: { jobId?: string };
+  }>;
+  publishedAt: number;
+}
+
+export async function publishQueueStats(): Promise<void> {
+  const [raw, counts, failedJobs] = await Promise.all([
+    rawQueueLength().catch(() => 0),
+    getScrapeQueue()
+      .getJobCounts("waiting", "active", "delayed", "failed")
+      .catch(() => ({ waiting: 0, active: 0, delayed: 0, failed: 0 })),
+    getScrapeQueue().getFailed(0, 4).catch(() => []),
+  ]);
+
+  const stats: QueueStats = {
+    raw,
+    scrape: {
+      waiting: counts.waiting ?? 0,
+      active: counts.active ?? 0,
+      delayed: counts.delayed ?? 0,
+      failed: counts.failed ?? 0,
+    },
+    recentFailures: failedJobs.map((j) => ({
+      id: j.id ?? "",
+      failedReason: j.failedReason ?? null,
+      finishedOn: j.finishedOn ?? null,
+      data: { jobId: (j.data as ScrapeJobData).jobId },
+    })),
+    publishedAt: Date.now(),
+  };
+
+  await getRedis().publish(QUEUE_STATS_CHANNEL, JSON.stringify(stats));
 }
 
 export function startScrapeWorker(

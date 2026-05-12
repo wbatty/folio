@@ -253,13 +253,19 @@ export function CompaniesSection() {
       .finally(() => setLoading(false));
   }, [fetchData]);
 
-  // Poll researching jobs
+  // Poll researching jobs — keyed on the sorted id list so the interval
+  // only restarts when the set of RESEARCHING jobs actually changes, not on every setJobs call.
+  const researchingKey = jobs
+    .filter((j) => j.status === "RESEARCHING")
+    .map((j) => j.id)
+    .sort()
+    .join(",");
   useEffect(() => {
-    const researchingIds = jobs.filter((j) => j.status === "RESEARCHING").map((j) => j.id);
-    if (researchingIds.length === 0) return;
+    if (!researchingKey) return;
+    const ids = researchingKey.split(",");
     const interval = setInterval(async () => {
       const updated = await Promise.all(
-        researchingIds.map((id) => fetch(`/api/jobs/${id}`).then((r) => r.json()).catch(() => null))
+        ids.map((id) => fetch(`/api/jobs/${id}`).then((r) => r.json()).catch(() => null))
       );
       setJobs((prev) =>
         prev.map((job) => {
@@ -269,7 +275,8 @@ export function CompaniesSection() {
       );
     }, 3000);
     return () => clearInterval(interval);
-  }, [jobs]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [researchingKey]);
 
   const handleStatusChange = useCallback((jobId: string, status: JobStatus) => {
     setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status } : j)));

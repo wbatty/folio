@@ -17,12 +17,7 @@ export default function RootLayout({
     
     <html lang="en" className="h-full antialiased font-sans" suppressHydrationWarning>
       <body className="min-h-full flex flex-col font-sans">
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
+        <ThemeProvider defaultTheme="system" disableTransitionOnChange>
           <PrivacyProvider>
             {children}
           </PrivacyProvider>

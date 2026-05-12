@@ -10,7 +10,7 @@
 import { supabase } from "../src/lib/supabase";
 import { normalizeUrl, hashUrl } from "../src/lib/url-normalize";
 import { readRaw, archiveRaw, type RawIngestMessage } from "../src/lib/ingest";
-import { getScrapeQueue } from "../src/lib/queue";
+import { getScrapeQueue, publishQueueStats } from "../src/lib/queue";
 import { matchCompanyByUrl, matchOrCreateCompanyByName } from "../src/lib/company-matching";
 
 const POLL_INTERVAL_MS = 3000;
@@ -142,7 +142,7 @@ async function processOne(row: { msg_id: string; message: RawIngestMessage }): P
     throw err;
   }
 
-  await getScrapeQueue().add("scrape", { jobId, chatId }, { jobId: `scrape:${jobId}` });
+  await getScrapeQueue().add("scrape", { jobId, chatId }, { jobId: `scrape_${jobId}` });
   console.log(`[${row.msg_id}] enqueued scrape for job ${jobId}`);
 
   if (chatId) {
@@ -173,6 +173,7 @@ async function loop(): Promise<void> {
           console.error(`[${row.msg_id}] processing failed; will retry after vt expires:`, err);
         }
       }
+      publishQueueStats().catch((err) => console.error("stats publish error:", err));
     } catch (err) {
       console.error("Poll loop error:", err);
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));

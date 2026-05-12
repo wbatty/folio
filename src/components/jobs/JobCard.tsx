@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "./StatusBadge";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, RefreshCw } from "lucide-react";
 import type { JobStatus } from "@/lib/schemas";
 import { PrivacyBlur } from "@/components/ui/privacy-blur";
 
@@ -38,6 +38,7 @@ interface JobCardProps {
 
 export function JobCard({ job, onStatusChange, deleted }: JobCardProps) {
   const [updating, setUpdating] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   async function handleStatusChange(newStatus: string) {
     setUpdating(true);
@@ -47,6 +48,19 @@ export function JobCard({ job, onStatusChange, deleted }: JobCardProps) {
       setUpdating(false);
     }
   }
+
+  const handleCheck = useCallback(async () => {
+    setChecking(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/check`, { method: "POST" });
+      const data = await res.json();
+      if (data.result === "denied") {
+        await onStatusChange(job.id, "DENIED");
+      }
+    } finally {
+      setChecking(false);
+    }
+  }, [job.id, onStatusChange]);
 
   const isResearching = job.status === "RESEARCHING";
 
@@ -109,6 +123,19 @@ export function JobCard({ job, onStatusChange, deleted }: JobCardProps) {
                 </Select>
               )}
             </div>
+            {job.status === "APPLIED" && (
+              <button
+                onClick={(e) => { e.preventDefault(); handleCheck(); }}
+                disabled={checking}
+                className="flex items-center gap-1 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors disabled:opacity-40"
+                title="Check if posting is still live"
+              >
+                {checking
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <RefreshCw className="h-3 w-3" />}
+                Check posting
+              </button>
+            )}
             {job.dateApplied && (
               <span className="text-xs text-muted-foreground/70">
                 Applied {new Date(job.dateApplied).toLocaleDateString()}

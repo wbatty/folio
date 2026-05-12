@@ -267,6 +267,11 @@ export default function ReportsPage() {
           </Link>
           <span className="text-sm font-semibold text-foreground">Reports</span>
           <div className="flex-1" />
+          <Link href="/ui-benefits">
+            <Button variant="ghost" size="sm">
+              UI Benefits
+            </Button>
+          </Link>
           <Button
             variant="outline"
             size="sm"

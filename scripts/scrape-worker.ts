@@ -5,7 +5,7 @@
  * on completion (when a chat_id was attached).
  */
 
-import { startScrapeWorker, type ScrapeJobData } from "../src/lib/queue";
+import { startScrapeWorker, publishQueueStats, type ScrapeJobData } from "../src/lib/queue";
 import { runScrape } from "../src/lib/scrape";
 import { supabase } from "../src/lib/supabase";
 
@@ -45,10 +45,12 @@ export function bootScrapeWorker() {
       );
     }
     console.log(`[scrape:${jobId}] done`);
+    publishQueueStats().catch((err) => console.error("stats publish error:", err));
   });
 
   worker.on("failed", (job, err) => {
     console.error(`[scrape:${job?.id}] failed:`, err.message);
+    publishQueueStats().catch(() => {});
   });
 
   return worker;

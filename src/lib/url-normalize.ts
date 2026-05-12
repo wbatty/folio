@@ -21,6 +21,7 @@ export function normalizeUrl(raw: string): string {
   for (const [k, v] of sorted) u.searchParams.append(k, v);
 
   u.hash = "";
+  u.protocol = "https:";
   u.hostname = u.hostname.toLowerCase();
 
   if (u.pathname !== "/" && u.pathname.endsWith("/")) {

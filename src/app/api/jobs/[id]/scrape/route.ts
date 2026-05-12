@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await getScrapeQueue().add(
     "scrape",
     { jobId: id },
-    { jobId: `scrape:${id}:${Date.now()}` }
+    { jobId: `scrape_${id}_${Date.now()}` }
   );
 
   return NextResponse.json({ enqueued: true }, { status: 202 });
