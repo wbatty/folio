@@ -2,6 +2,13 @@ import { z } from "zod";
 import { JobExtractionSchema } from "@/lib/schemas";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 
+export class ClaudeRateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ClaudeRateLimitError";
+  }
+}
+
 // Token bucket rate limiter — stays within 30k input tokens/minute.
 // Shared across all calls in the same process (queue consumer or Next.js server).
 class TokenRateLimiter {
@@ -60,7 +67,12 @@ export async function parseJob(jobDescription: string): Promise<{ data: z.infer<
     },
   })) {
     if (message.type === "system" && message.subtype === "api_retry") {
-      throw new Error(`Agent error: ${message.error}`);
+      const errStr = String((message as { error?: unknown }).error ?? "");
+      const isRateLimit = /rate.?limit|overloaded/i.test(errStr) || /\b429\b/.test(errStr);
+      if (isRateLimit) {
+        throw new ClaudeRateLimitError(`Claude rate limit hit: ${errStr}`);
+      }
+      console.warn(`[claude] api_retry (non-rate-limit): ${errStr}`);
     }
     if (message.type === "result" && message.subtype === "success") {
       structuredOutput = message.structured_output;

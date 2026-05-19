@@ -13,20 +13,37 @@ export async function GET(req: NextRequest) {
   const startISO = new Date(start + "T00:00:00").toISOString();
   const endISO = new Date(end + "T23:59:59.999").toISOString();
 
+  const { data: appliedLogs } = await supabase
+    .from("status_logs")
+    .select("job_id, created_at")
+    .eq("status", "APPLIED")
+    .gte("created_at", startISO)
+    .lte("created_at", endISO);
+
+  const appliedAtByJob = new Map<string, string>();
+  for (const r of appliedLogs ?? []) {
+    if (r.job_id && !appliedAtByJob.has(r.job_id)) {
+      appliedAtByJob.set(r.job_id, r.created_at);
+    }
+  }
+
+  const jobIds = [...appliedAtByJob.keys()];
+
+  if (jobIds.length === 0) {
+    return NextResponse.json({ start, end, jobs: [], totalStatusLogs: 0, totalNotes: 0 });
+  }
+
   const [{ data: statusLogs }, { data: notes }] = await Promise.all([
     supabase
       .from("status_logs")
       .select("id, status, note, created_at, job_id, jobs(id, url, title, status, company_id, companies(name))")
-      .gte("created_at", startISO)
-      .lte("created_at", endISO)
-      .not("status", "in", '("RESEARCHING","PENDING_APPLICATION","RESEARCH_ERROR")')
+      .in("job_id", jobIds)
       .order("created_at", { ascending: true }),
 
     supabase
       .from("notes")
       .select("id, content, created_at, job_id, jobs(id, url, title, status, company_id, companies(name))")
-      .gte("created_at", startISO)
-      .lte("created_at", endISO)
+      .in("job_id", jobIds)
       .order("created_at", { ascending: true }),
   ]);
 
@@ -38,6 +55,7 @@ export async function GET(req: NextRequest) {
     title: string | null;
     status: string;
     company: string | null;
+    appliedAt: string;
     statusLogs: { id: string; status: string; note: string | null; createdAt: string }[];
     notes: { id: string; content: string; createdAt: string }[];
   }>();
@@ -50,6 +68,7 @@ export async function GET(req: NextRequest) {
         title: job.title ?? null,
         status: job.status,
         company: (job.companies as { name: string } | null)?.name ?? null,
+        appliedAt: appliedAtByJob.get(job.id) ?? "",
         statusLogs: [],
         notes: [],
       });
@@ -71,22 +90,18 @@ export async function GET(req: NextRequest) {
     entry.notes.push({ id: note.id, content: note.content, createdAt: note.created_at });
   }
 
-  const jobs = Array.from(jobMap.values()).sort((a, b) => {
-    const aLatest = Math.max(
-      ...a.statusLogs.map((l) => new Date(l.createdAt).getTime()),
-      ...a.notes.map((n) => new Date(n.createdAt).getTime()),
-    );
-    const bLatest = Math.max(
-      ...b.statusLogs.map((l) => new Date(l.createdAt).getTime()),
-      ...b.notes.map((n) => new Date(n.createdAt).getTime()),
-    );
-    return bLatest - aLatest;
-  });
+  const jobs = Array.from(jobMap.values()).sort(
+    (a, b) => new Date(a.appliedAt).getTime() - new Date(b.appliedAt).getTime(),
+  );
+
+  const totalDays = new Set([...appliedAtByJob.values()].map((ts) => ts.slice(0, 10))).size;
 
   return NextResponse.json({
     start,
     end,
     jobs,
+    totalJobs: jobs.length,
+    totalDays,
     totalStatusLogs: (statusLogs ?? []).length,
     totalNotes: (notes ?? []).length,
   });

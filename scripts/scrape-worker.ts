@@ -8,6 +8,7 @@
 import { startScrapeWorker, publishQueueStats, type ScrapeJobData } from "../src/lib/queue";
 import { runScrape } from "../src/lib/scrape";
 import { supabase } from "../src/lib/supabase";
+import { ClaudeRateLimitError } from "../src/lib/claude";
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
@@ -49,7 +50,11 @@ export function bootScrapeWorker() {
   });
 
   worker.on("failed", (job, err) => {
-    console.error(`[scrape:${job?.id}] failed:`, err.message);
+    if (err instanceof ClaudeRateLimitError) {
+      console.warn(`[scrape:${job?.id}] rate-limited by Claude — will retry via backoff: ${err.message}`);
+    } else {
+      console.error(`[scrape:${job?.id}] failed:`, err.message);
+    }
     publishQueueStats().catch(() => {});
   });
 

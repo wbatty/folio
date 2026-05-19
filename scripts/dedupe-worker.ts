@@ -33,7 +33,7 @@ async function notifyTelegram(chatId: number, text: string): Promise<void> {
 async function findExistingByHash(urlHash: string) {
   return await supabase
     .from("jobs")
-    .select("id, url, title, status, companies(name)")
+    .select("id, url, title, status, description_full, companies(name)")
     .eq("url_hash", urlHash)
     .is("deleted_at", null)
     .maybeSingle();
@@ -112,6 +112,26 @@ async function processOne(row: { msg_id: string; message: RawIngestMessage }): P
 
   const { data: existing } = await findExistingByHash(urlHash);
   if (existing) {
+    const hasContent = existing.description_full && (existing.description_full as string).trim().length > 0;
+    if (!hasContent) {
+      // Existing record has no scraped content — re-enqueue a scrape to try again
+      console.log(`[${row.msg_id}] duplicate of job ${existing.id} but description_full is empty; re-enqueueing scrape`);
+      await supabase.from("jobs").update({ status: "RESEARCHING" }).eq("id", existing.id);
+      await supabase.from("status_logs").insert({
+        job_id: existing.id,
+        status: "RESEARCHING",
+        note: "Re-ingested due to missing description",
+      });
+      await getScrapeQueue().add("scrape", { jobId: existing.id, chatId }, { jobId: `scrape_${existing.id}_retry` });
+      if (chatId) {
+        await notifyTelegram(
+          chatId,
+          `This job was already in your list but had no data — re-triggering research now.\n${msg.url}`
+        );
+      }
+      await archiveRaw(row.msg_id);
+      return;
+    }
     console.log(`[${row.msg_id}] duplicate of job ${existing.id}`);
     if (chatId) {
       const company = (existing.companies as { name: string } | null)?.name;

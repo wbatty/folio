@@ -64,6 +64,7 @@ async function checkAshby(boardHandle: string, jobId: string): Promise<JobCheckR
     if (res.status === 404) return "closed";
     if (!res.ok) return "unknown";
     const { data } = await res.json();
+    console.log("Ashby job check response", { data });
     return data?.jobPosting ? "live" : "closed";
   } catch {
     return "unknown";

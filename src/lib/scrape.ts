@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { parseJob } from "@/lib/claude";
 import { matchOrCreateCompanyByName } from "@/lib/company-matching";
 import { detectATS } from "@/lib/ats-detect";
+import { checkJobStillLive } from "@/lib/job-check";
 import {
   fetchGreenhouse,
   fetchLever,
@@ -190,6 +191,25 @@ export async function runScrape(jobId: string, options: ScrapeOptions = {}): Pro
     }
 
     const route = await detectATS(job.url);
+    console.log(`[${jobId}] detected ATS route:`, route);
+
+    // For unknown ATS routes we can't rely on the fetch to detect closed listings,
+    // so run a lightweight liveness check first. Known ATS routes have dedicated
+    // fetch functions that throw JobNotFoundError when a listing is gone.
+    if (route.ats === "unknown") {
+      const liveness = await checkJobStillLive(job.url);
+      console.log(`[${jobId}] job liveness check result: ${liveness}`);
+      if (liveness === "closed") {
+        console.log(`[${jobId}] job check returned closed for ${job.url}, marking EXPIRED`);
+        await supabase.from("jobs").update({ status: "EXPIRED" }).eq("id", jobId);
+        await supabase.from("status_logs").insert({
+          job_id: jobId,
+          status: "EXPIRED",
+          note: "Job posting unreachable during initial ingest — marked expired to avoid re-processing",
+        });
+        return;
+      }
+    }
 
     if (route.ats === "greenhouse") {
       await extractAndUpdateFromJobData(jobId, await fetchGreenhouse(route.boardToken, route.jobId));

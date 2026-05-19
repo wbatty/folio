@@ -49,6 +49,7 @@ interface JobActivity {
   title: string | null;
   status: string;
   company: string | null;
+  appliedAt: string;
   statusLogs: StatusLogEntry[];
   notes: NoteEntry[];
 }
@@ -57,6 +58,8 @@ interface SummaryData {
   start: string;
   end: string;
   jobs: JobActivity[];
+  totalJobs: number;
+  totalDays: number;
   totalStatusLogs: number;
   totalNotes: number;
 }
@@ -65,6 +68,16 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
   });
+}
+
+function formatDateHeading(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  });
+}
+
+function appliedDateKey(iso: string) {
+  return iso.slice(0, 10); // YYYY-MM-DD
 }
 
 function formatDateTime(iso: string) {
@@ -157,23 +170,20 @@ export default function UIBenefitsPage() {
             {/* Quick presets */}
             <div className="flex gap-2 ml-auto">
               {[
-                { label: "2 weeks", days: 13 },
-                { label: "4 weeks", days: 27 },
-                { label: "This month", days: -1 },
-              ].map(({ label, days }) => (
+                { label: "This week", offset: 0 },
+                { label: "Last week", offset: 1 },
+              ].map(({ label, offset }) => (
                 <button
                   key={label}
                   onClick={() => {
                     const today = new Date();
-                    const end = today.toISOString().slice(0, 10);
-                    let start: string;
-                    if (days === -1) {
-                      start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-                    } else {
-                      const s = new Date(today);
-                      s.setDate(s.getDate() - days);
-                      start = s.toISOString().slice(0, 10);
-                    }
+                    // Find Sunday of the current week, then shift back by offset weeks
+                    const sunday = new Date(today);
+                    sunday.setDate(today.getDate() - today.getDay() - offset * 7);
+                    const saturday = new Date(sunday);
+                    saturday.setDate(sunday.getDate() + 6);
+                    const start = sunday.toISOString().slice(0, 10);
+                    const end = saturday.toISOString().slice(0, 10);
                     setStartDate(start);
                     setEndDate(end);
                     load(start, end);
@@ -206,9 +216,10 @@ export default function UIBenefitsPage() {
             </div>
 
             {/* Summary bar */}
-            <div className="grid grid-cols-3 gap-px bg-border rounded-xl overflow-hidden mb-6">
+            <div className="grid grid-cols-4 gap-px bg-border rounded-xl overflow-hidden mb-6">
               {[
-                { label: "Jobs with activity", value: jobCount },
+                { label: "Positions applied", value: data.totalJobs ?? jobCount },
+                { label: "Days applied", value: data.totalDays },
                 { label: "Status changes", value: data.totalStatusLogs },
                 { label: "Notes added", value: data.totalNotes },
               ].map(({ label, value }) => (
@@ -229,80 +240,106 @@ export default function UIBenefitsPage() {
 
             {jobCount === 0 ? (
               <div className="bg-card border border-border rounded-xl p-8 text-center">
-                <p className="text-sm text-muted-foreground">No activity found in this date range.</p>
+                <p className="text-sm text-muted-foreground">No positions applied in this date range.</p>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {data.jobs.map((job) => {
-                  const displayName = job.company ?? job.title ?? job.url;
-                  const subtitle = job.company && job.title ? job.title : null;
+            ) : (() => {
+              // Group jobs by applied date (most recent first)
+              const dayGroups: { dateKey: string; jobs: JobActivity[] }[] = [];
+              for (const job of data.jobs) {
+                const key = appliedDateKey(job.appliedAt);
+                const existing = dayGroups.find((g) => g.dateKey === key);
+                if (existing) {
+                  existing.jobs.push(job);
+                } else {
+                  dayGroups.push({ dateKey: key, jobs: [job] });
+                }
+              }
 
-                  // Merge and sort all events chronologically
-                  type Event =
-                    | { kind: "status"; entry: StatusLogEntry }
-                    | { kind: "note"; entry: NoteEntry };
-                  const events: Event[] = [
-                    ...job.statusLogs.map((l) => ({ kind: "status" as const, entry: l })),
-                    ...job.notes.map((n) => ({ kind: "note" as const, entry: n })),
-                  ].sort((a, b) => new Date(a.entry.createdAt).getTime() - new Date(b.entry.createdAt).getTime());
+              type Event =
+                | { kind: "status"; entry: StatusLogEntry }
+                | { kind: "note"; entry: NoteEntry };
 
-                  return (
-                    <div key={job.id} className="bg-card border border-border rounded-xl p-5">
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-foreground">{displayName}</span>
-                            {subtitle && (
-                              <span className="text-xs text-muted-foreground">{subtitle}</span>
-                            )}
-                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[job.status] ?? "bg-muted-foreground"}`} />
-                            <span className="text-xs text-muted-foreground">{STATUS_LABELS[job.status] ?? job.status}</span>
-                          </div>
-                          <a
-                            href={job.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 mt-0.5 print:text-foreground truncate max-w-xs"
-                          >
-                            {job.url}
-                            <ExternalLink className="h-2.5 w-2.5 shrink-0 print:hidden" />
-                          </a>
-                        </div>
-                        <Link
-                          href={`/jobs/${job.id}`}
-                          className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors shrink-0 print:hidden"
-                        >
-                          View
-                        </Link>
-                      </div>
+              return (
+                <div className="space-y-8">
+                  {dayGroups.map(({ dateKey, jobs: dayJobs }) => (
+                    <section key={dateKey}>
+                      <h2 className="text-lg font-bold text-foreground mb-3 pb-2 border-b border-border">
+                        {formatDateHeading(dateKey + "T12:00:00")}
+                        <span className="ml-2 text-sm font-normal text-muted-foreground">
+                          {dayJobs.length} {dayJobs.length === 1 ? "position" : "positions"}
+                        </span>
+                      </h2>
+                      <div className="space-y-3">
+                        {dayJobs.map((job) => {
+                          const displayName = job.company ?? job.title ?? job.url;
+                          const subtitle = job.company && job.title ? job.title : null;
 
-                      <div className="space-y-1.5 pl-3 border-l border-border">
-                        {events.map((ev) => (
-                          <div key={ev.entry.id} className="flex gap-3 items-start">
-                            <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 pt-0.5 w-32">
-                              {formatDateTime(ev.entry.createdAt)}
-                            </span>
-                            {ev.kind === "status" ? (
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[ev.entry.status] ?? "bg-muted-foreground"}`} />
-                                <span className="text-xs font-medium text-foreground">
-                                  {STATUS_LABELS[ev.entry.status] ?? ev.entry.status}
-                                </span>
-                                {ev.entry.note && (
-                                  <span className="text-xs text-muted-foreground">— {ev.entry.note}</span>
-                                )}
+                          const events: Event[] = [
+                            ...job.statusLogs.map((l) => ({ kind: "status" as const, entry: l })),
+                            ...job.notes.map((n) => ({ kind: "note" as const, entry: n })),
+                          ].sort((a, b) => new Date(a.entry.createdAt).getTime() - new Date(b.entry.createdAt).getTime());
+
+                          return (
+                            <div key={job.id} className="bg-card border border-border rounded-xl p-5">
+                              <div className="flex items-start gap-3 mb-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-base font-semibold text-foreground">{displayName}</span>
+                                    {subtitle && (
+                                      <span className="text-sm text-muted-foreground">{subtitle}</span>
+                                    )}
+                                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[job.status] ?? "bg-muted-foreground"}`} />
+                                    <span className="text-xs text-muted-foreground">{STATUS_LABELS[job.status] ?? job.status}</span>
+                                  </div>
+                                  <a
+                                    href={job.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5 mt-0.5 print:text-foreground truncate max-w-xs"
+                                  >
+                                    {job.url}
+                                    <ExternalLink className="h-2.5 w-2.5 shrink-0 print:hidden" />
+                                  </a>
+                                </div>
+                                <Link
+                                  href={`/jobs/${job.id}`}
+                                  className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors shrink-0 print:hidden"
+                                >
+                                  View
+                                </Link>
                               </div>
-                            ) : (
-                              <p className="text-xs text-muted-foreground italic">{ev.entry.content}</p>
-                            )}
-                          </div>
-                        ))}
+
+                              <div className="space-y-1.5 pl-3 border-l border-border">
+                                {events.map((ev) => (
+                                  <div key={ev.entry.id} className="flex gap-3 items-start">
+                                    <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 pt-0.5 w-32">
+                                      {formatDateTime(ev.entry.createdAt)}
+                                    </span>
+                                    {ev.kind === "status" ? (
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[ev.entry.status] ?? "bg-muted-foreground"}`} />
+                                        <span className="text-xs font-medium text-foreground">
+                                          {STATUS_LABELS[ev.entry.status] ?? ev.entry.status}
+                                        </span>
+                                        {ev.entry.note && (
+                                          <span className="text-xs text-muted-foreground">— {ev.entry.note}</span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground italic">{ev.entry.content}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    </section>
+                  ))}
+                </div>
+              );
+            })()}
           </>
         )}
       </main>

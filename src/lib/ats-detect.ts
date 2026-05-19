@@ -17,7 +17,7 @@ const PATTERNS: Array<[RegExp, (m: RegExpMatchArray) => ATSRoute]> = [
     (m) => ({ ats: "lever", company: m[1], jobId: m[2] }),
   ],
   [
-    /jobs\.ashbyhq\.com\/([^/]+)\/([a-f0-9-]{36})/i,
+    /jobs\.ashbyhq\.com\/([^/]+)\/([^/?#]+)/i,
     (m) => ({ ats: "ashby", boardHandle: m[1], jobId: m[2] }),
   ],
   [

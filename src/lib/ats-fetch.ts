@@ -347,58 +347,24 @@ export async function fetchAshby(boardHandle: string, jobId: string): Promise<Jo
 
 // ─── Workday ──────────────────────────────────────────────────────────────────
 
-interface WorkdayJobResponse {
-  jobPostingInfo: {
-    title?: string;
-    jobPostingDescription?: string;
-    additionalLocations?: Array<{ descriptor?: string }>;
-  };
-}
-
-function normalizeWorkday(data: WorkdayJobResponse): JobData {
-  const info = data.jobPostingInfo;
-  return {
-    title: info.title ?? "",
-    company: "",
-    location: info.additionalLocations?.[0]?.descriptor ?? null,
-    description_markdown: htmlToMarkdown(info.jobPostingDescription ?? ""),
-    application_questions: [],
-    raw_json: data,
-  };
-}
-
 export async function fetchWorkday(url: string): Promise<JobData> {
   const browser = await chromium.launch({ headless: true });
-  const ctx = await browser.newContext();
-  const page = await ctx.newPage();
-
-  let captured: WorkdayJobResponse | null = null;
-
-  page.on("response", async (response) => {
-    const respUrl = response.url();
-    if (
-      respUrl.includes("/wday/cxs/") &&
-      response.request().method() === "GET" &&
-      response.headers()["content-type"]?.includes("application/json")
-    ) {
-      try {
-        const json = await response.json();
-        if (json?.jobPostingInfo) captured = json as WorkdayJobResponse;
-      } catch {
-        // non-JSON response
-      }
-    }
-  });
-
   try {
-    await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await page.waitForTimeout(2000);
+    const html = await page.content();
+    return {
+      title: "",
+      company: "",
+      location: null,
+      description_markdown: htmlToMarkdown(html),
+      application_questions: [],
+      raw_json: null,
+    };
   } finally {
-    await ctx.close();
     await browser.close();
   }
-
-  if (!captured) throw new ParseError("workday", "XHR payload not captured");
-  return normalizeWorkday(captured);
 }
 
 // ─── Unknown / Cheerio triage ─────────────────────────────────────────────────

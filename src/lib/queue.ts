@@ -91,6 +91,12 @@ export function startScrapeWorker(
   return new Worker<ScrapeJobData>("scrape", processor, {
     connection: getRedis(),
     concurrency: Number(process.env.SCRAPE_CONCURRENCY ?? 2),
+    // Cap Claude API calls: default 10 jobs/min (each calls parseJob once).
+    // Override with SCRAPE_RATE_LIMIT_MAX + SCRAPE_RATE_LIMIT_DURATION_MS env vars.
+    limiter: {
+      max: Number(process.env.SCRAPE_RATE_LIMIT_MAX ?? 10),
+      duration: Number(process.env.SCRAPE_RATE_LIMIT_DURATION_MS ?? 60_000),
+    },
     ...options,
   });
 }
